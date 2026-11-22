@@ -16,6 +16,21 @@
       };
     })();
   </script>
+  <!-- Immediate theme hydration to prevent flash of wrong theme -->
+  <script>
+    (function() {
+      try {
+        const saved = localStorage.getItem('fb_autoblog_theme');
+        if (saved === 'light') {
+          document.documentElement.classList.remove('dark');
+          document.documentElement.classList.add('light');
+        } else {
+          document.documentElement.classList.remove('light');
+          document.documentElement.classList.add('dark');
+        }
+      } catch (e) {}
+    })();
+  </script>
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Lucide Icons -->
@@ -42,25 +57,34 @@
 </head>
 <body class="bg-[#06080F] text-gray-200 h-screen w-screen overflow-hidden flex flex-row antialiased select-none">
 
+  <!-- Mobile Sidebar Backdrop Overlay -->
+  <div id="sidebar-overlay" onclick="toggleSidebar(false)" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-40 lg:hidden transition-opacity duration-300"></div>
+
   <!-- ========================================================================= -->
   <!-- LUXURY SOFTWARE SIDEBAR (LEFT)                                            -->
   <!-- ========================================================================= -->
-  <aside class="w-64 h-full bg-[#0A0D18] border-r border-white/[0.06] flex flex-col justify-between shrink-0 z-30">
+  <aside id="sidebar" class="fixed lg:static inset-y-0 left-0 z-50 w-72 lg:w-64 h-full bg-[#0A0D18] border-r border-white/[0.06] flex flex-col justify-between shrink-0 transform -translate-x-full lg:translate-x-0 transition-transform duration-300 ease-in-out shadow-2xl lg:shadow-none">
     <div class="flex flex-col h-full overflow-hidden">
       
       <!-- Brand & Workspace Selector -->
       <div class="p-4 border-b border-white/[0.06]">
-        <div class="flex items-center space-x-3">
-          <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-600 via-purple-600 to-blue-500 flex items-center justify-center text-white shadow-lg shadow-indigo-600/30">
-            <i data-lucide="layers" class="w-5 h-5"></i>
-          </div>
-          <div class="leading-tight truncate">
-            <div class="font-bold text-sm tracking-tight text-white flex items-center gap-1.5">
-              <span>AutoBlog</span>
-              <span class="text-[10px] font-semibold bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 px-1.5 py-0.2 rounded">PRO</span>
+        <div class="flex items-center justify-between">
+          <div class="flex items-center space-x-3">
+            <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-600 via-purple-600 to-blue-500 flex items-center justify-center text-white shadow-lg shadow-indigo-600/30">
+              <i data-lucide="layers" class="w-5 h-5"></i>
             </div>
-            <div class="text-[11px] text-gray-400 truncate">ByteForce Distribution Suite</div>
+            <div class="leading-tight truncate">
+              <div class="font-bold text-sm tracking-tight text-white flex items-center gap-1.5">
+                <span>AutoBlog</span>
+                <span class="text-[10px] font-semibold bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 px-1.5 py-0.2 rounded">PRO</span>
+              </div>
+              <div class="text-[11px] text-gray-400 truncate">ByteForce Distribution Suite</div>
+            </div>
           </div>
+          <!-- Mobile Drawer Dismiss Button -->
+          <button onclick="toggleSidebar(false)" class="lg:hidden p-1.5 text-gray-400 hover:text-white rounded-lg hover:bg-white/[0.06] transition" aria-label="Close sidebar">
+            <i data-lucide="x" class="w-5 h-5"></i>
+          </button>
         </div>
 
         <!-- Workspace Dropdown Pill -->
@@ -189,7 +213,7 @@
       </nav>
 
       <!-- Bottom Session & Account Status Widget -->
-      <div class="p-3 border-t border-white/[0.06] bg-black/20 space-y-2">
+      <div class="p-3 border-t border-white/[0.06] bg-black/20 space-y-2.5">
         <div class="flex items-center justify-between">
           <div class="flex items-center space-x-2.5">
             <div class="relative">
@@ -205,6 +229,18 @@
             Login
           </button>
         </div>
+
+        <!-- Sidebar Theme Quick Toggle -->
+        <div class="flex items-center justify-between pt-2 border-t border-white/[0.04] text-[11px] text-gray-400">
+          <span class="flex items-center gap-1.5">
+            <i data-lucide="palette" class="w-3.5 h-3.5 text-indigo-400"></i>
+            <span>Theme</span>
+          </span>
+          <button onclick="toggleTheme()" class="hover:text-white flex items-center gap-1 px-2 py-0.5 rounded-md hover:bg-white/[0.06] transition text-[11px] font-semibold text-gray-300 border border-white/[0.06]" aria-label="Toggle Dark/Light Mode">
+            <i data-lucide="sun" id="sidebar-theme-icon" class="w-3 h-3 text-amber-400"></i>
+            <span id="sidebar-theme-text">Dark Mode</span>
+          </button>
+        </div>
       </div>
 
     </div>
@@ -216,27 +252,37 @@
   <div class="flex-1 flex flex-col h-full overflow-hidden bg-[#06080F]">
     
     <!-- Top Software Header / Bar -->
-    <header class="h-14 border-b border-white/[0.06] bg-[#0A0D18]/60 backdrop-blur-md px-6 flex items-center justify-between shrink-0">
-      <div class="flex items-center space-x-2 text-xs">
-        <span class="text-gray-500">Suite</span>
-        <span class="text-gray-600">/</span>
-        <span id="breadcrumb-title" class="text-gray-200 font-semibold">1-Click Multi-Poster Studio</span>
+    <header class="h-14 border-b border-white/[0.06] bg-[#0A0D18]/60 backdrop-blur-md px-3 sm:px-4 md:px-6 flex items-center justify-between shrink-0 gap-2">
+      <div class="flex items-center space-x-2 text-xs truncate">
+        <!-- Mobile Sidebar Hamburger Toggle -->
+        <button id="mobile-menu-btn" onclick="toggleSidebar(true)" class="lg:hidden p-2 -ml-1 text-gray-300 hover:text-white rounded-lg hover:bg-white/[0.06] focus:outline-none transition" aria-label="Open Navigation">
+          <i data-lucide="menu" class="w-5 h-5"></i>
+        </button>
+        <span class="text-gray-500 hidden sm:inline">Suite</span>
+        <span class="text-gray-600 hidden sm:inline">/</span>
+        <span id="breadcrumb-title" class="text-gray-200 font-semibold truncate text-xs sm:text-sm">1-Click Multi-Poster Studio</span>
       </div>
 
       <!-- Engine Live Activity Pill & Global Controls -->
-      <div class="flex items-center space-x-3">
+      <div class="flex items-center space-x-1.5 sm:space-x-2.5 shrink-0">
         <!-- Live Engine Status Badge -->
-        <div id="topbar-engine-status" class="flex items-center space-x-2 bg-white/[0.04] border border-white/[0.06] px-3 py-1 rounded-full text-xs">
-          <span class="w-2 h-2 rounded-full bg-emerald-400 pulse-green"></span>
-          <span id="topbar-engine-text" class="text-gray-300 font-medium">Engine Idle</span>
+        <div id="topbar-engine-status" class="flex items-center space-x-1.5 sm:space-x-2 bg-white/[0.04] border border-white/[0.06] px-2 sm:px-3 py-1 rounded-full text-[11px] sm:text-xs">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 pulse-green shrink-0"></span>
+          <span id="topbar-engine-text" class="text-gray-300 font-medium hidden md:inline">Engine Idle</span>
         </div>
 
-        <button onclick="openNewPostModal()" class="flex items-center space-x-1.5 bg-white/[0.06] hover:bg-white/[0.1] text-gray-200 border border-white/[0.08] px-3 py-1.5 rounded-lg text-xs font-semibold transition">
-          <i data-lucide="plus" class="w-3.5 h-3.5"></i>
-          <span>New Post</span>
+        <!-- Light / Dark Theme Toggle Button -->
+        <button id="theme-toggle-btn" onclick="toggleTheme()" class="flex items-center space-x-1 sm:space-x-1.5 bg-white/[0.06] hover:bg-white/[0.1] text-gray-200 border border-white/[0.08] px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold transition" title="Toggle Theme (Dark / Light)" aria-label="Toggle Theme">
+          <i data-lucide="sun" id="theme-toggle-icon" class="w-3.5 h-3.5 text-amber-400"></i>
+          <span id="theme-toggle-text" class="hidden sm:inline">Theme</span>
         </button>
 
-        <button onclick="switchTab('oneclick')" class="btn-primary-action px-3.5 py-1.5 rounded-lg text-xs flex items-center space-x-1.5">
+        <button onclick="openNewPostModal()" class="flex items-center space-x-1 sm:space-x-1.5 bg-white/[0.06] hover:bg-white/[0.1] text-gray-200 border border-white/[0.08] px-2 sm:px-3 py-1.5 rounded-lg text-xs font-semibold transition">
+          <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+          <span class="hidden sm:inline">New Post</span>
+        </button>
+
+        <button onclick="switchTab('oneclick')" class="btn-primary-action px-2.5 sm:px-3.5 py-1.5 rounded-lg text-xs flex items-center space-x-1 sm:space-x-1.5">
           <i data-lucide="zap" class="w-3.5 h-3.5"></i>
           <span>1-Click Post</span>
         </button>
@@ -244,30 +290,30 @@
     </header>
 
     <!-- Scrollable Content View Area -->
-    <main class="flex-1 overflow-y-auto p-6">
+    <main class="flex-1 overflow-y-auto p-3 sm:p-4 md:p-6 pb-24 sm:pb-8">
 
       <!-- ===================================================================== -->
       <!-- VIEW: WORLDWIDE & COUNTRY-WISE FACEBOOK GROUP FINDER                 -->
       <!-- ===================================================================== -->
       <section id="tab-groupfinder" class="tab-content space-y-6">
         <!-- Top Title & Stats Banner -->
-        <div class="software-card p-6 space-y-5">
+        <div class="software-card p-4 sm:p-6 space-y-4 sm:space-y-5">
           <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-white/[0.06] gap-3">
             <div>
               <div class="flex items-center gap-2.5">
-                <div class="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold">
+                <div class="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold shrink-0">
                   <i data-lucide="compass" class="w-4 h-4"></i>
                 </div>
                 <div>
-                  <h2 class="text-lg font-bold text-white flex items-center gap-2">
-                    Worldwide Facebook Group Finder
+                  <h2 class="text-base sm:text-lg font-bold text-white flex flex-wrap items-center gap-2">
+                    <span>Worldwide Facebook Group Finder</span>
                     <span class="text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full uppercase">Verified Direct Post Only</span>
                   </h2>
                   <p class="text-xs text-gray-400">Discover active, high-traffic Facebook groups worldwide where members can publish posts without admin approval.</p>
                 </div>
               </div>
             </div>
-            <div class="flex items-center space-x-2">
+            <div class="flex items-center space-x-2 shrink-0">
               <span class="text-xs text-gray-400">Strict Filter:</span>
               <span class="text-[11px] font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-full flex items-center gap-1.5">
                 <span class="w-2 h-2 rounded-full bg-emerald-400 pulse-green"></span>
@@ -278,17 +324,17 @@
 
           <!-- Main Search & Country Discovery Form -->
           <form onsubmit="handleFinderSearch(event)" class="space-y-4">
-            <div class="grid grid-cols-1 lg:grid-cols-12 gap-3">
+            <div class="grid grid-cols-1 md:grid-cols-12 gap-2.5 sm:gap-3">
               <!-- Keyword Search Input -->
-              <div class="lg:col-span-5 relative">
+              <div class="md:col-span-5 relative">
                 <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-500">
                   <i data-lucide="search" class="w-4 h-4"></i>
                 </div>
-                <input type="text" id="finder-keyword" placeholder="Enter keyword, niche, or topic (e.g. Blogging, Affiliate Marketing, Crypto, Shopify, Real Estate)..." class="w-full bg-black/60 border border-white/[0.1] rounded-xl pl-9 pr-3 py-2.5 text-xs text-gray-100 placeholder-gray-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500">
+                <input type="text" id="finder-keyword" placeholder="Enter keyword or niche (e.g. Blogging, Affiliate, Crypto, Shopify)..." class="w-full bg-black/60 border border-white/[0.1] rounded-xl pl-9 pr-3 py-2.5 text-xs text-gray-100 placeholder-gray-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500">
               </div>
 
               <!-- Country Selector Dropdown -->
-              <div class="lg:col-span-3 relative">
+              <div class="md:col-span-3 relative">
                 <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-500">
                   <i data-lucide="globe" class="w-4 h-4"></i>
                 </div>
@@ -310,24 +356,24 @@
               </div>
 
               <!-- Action Buttons -->
-              <div class="lg:col-span-4 flex gap-2">
-                <button type="submit" class="btn-primary-action flex-1 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5">
+              <div class="md:col-span-4 grid grid-cols-5 sm:flex gap-2">
+                <button type="submit" class="col-span-2 sm:flex-1 btn-primary-action py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5">
                   <i data-lucide="search" class="w-3.5 h-3.5"></i>
                   <span>Discover</span>
                 </button>
-                <button type="button" onclick="openLiveFacebookSearch()" class="bg-blue-600/30 hover:bg-blue-600/50 text-blue-200 border border-blue-500/40 px-3 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition" title="Search live Facebook groups directly on facebook.com with Join buttons">
+                <button type="button" onclick="openLiveFacebookSearch()" class="col-span-2 sm:flex-1 bg-blue-600/30 hover:bg-blue-600/50 text-blue-200 border border-blue-500/40 px-3 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition" title="Search live Facebook groups directly on facebook.com with Join buttons">
                   <i data-lucide="external-link" class="w-3.5 h-3.5 text-blue-400"></i>
                   <span>Live on FB</span>
                 </button>
-                <button type="button" onclick="resetFinderFilters()" class="bg-white/[0.06] hover:bg-white/[0.1] text-gray-300 border border-white/[0.08] px-3 py-2.5 rounded-xl text-xs font-medium" title="Reset Filters">
+                <button type="button" onclick="resetFinderFilters()" class="col-span-1 sm:w-auto bg-white/[0.06] hover:bg-white/[0.1] text-gray-300 border border-white/[0.08] px-3 py-2.5 rounded-xl text-xs font-medium flex items-center justify-center" title="Reset Filters">
                   <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
                 </button>
               </div>
             </div>
 
             <!-- Priority Filters Bar (Requirement 4, 5, 6) -->
-            <div class="pt-2 flex flex-wrap items-center justify-between gap-3 text-xs bg-white/[0.02] border border-white/[0.04] p-3 rounded-xl">
-              <div class="flex flex-wrap items-center gap-4">
+            <div class="pt-2 flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs bg-white/[0.02] border border-white/[0.04] p-3 rounded-xl">
+              <div class="flex flex-wrap items-center gap-2 sm:gap-3">
                 <!-- STRICT Filter 1: No Admin Approval Required (Highest Priority) -->
                 <label class="flex items-center space-x-2 cursor-pointer select-none bg-emerald-500/10 border border-emerald-500/30 px-3 py-1.5 rounded-lg text-emerald-300 font-semibold hover:bg-emerald-500/20 transition">
                   <input type="checkbox" id="finder-no-approval" checked onchange="handleFinderSearch()" class="w-4 h-4 accent-emerald-500 rounded cursor-pointer">
@@ -351,13 +397,13 @@
                   <input type="checkbox" id="finder-high-activity" onchange="handleFinderSearch()" class="w-4 h-4 accent-amber-500 rounded cursor-pointer">
                   <span class="flex items-center gap-1.5">
                     <i data-lucide="zap" class="w-3.5 h-3.5 text-amber-400"></i>
-                    <span>High Activity Only (>10 posts/day)</span>
+                    <span>High Activity Only (>10/day)</span>
                   </span>
                 </label>
               </div>
 
               <!-- Sort Order -->
-              <div class="flex items-center space-x-2">
+              <div class="flex items-center justify-between sm:justify-start space-x-2 pt-2 md:pt-0 border-t md:border-t-0 border-white/[0.06]">
                 <span class="text-gray-400 text-[11px] font-medium">Sort by:</span>
                 <select id="finder-sort" onchange="handleFinderSearch()" class="bg-black/50 border border-white/[0.08] rounded-lg px-2.5 py-1 text-xs text-gray-300 focus:outline-none focus:border-indigo-500">
                   <option value="rank">⭐ Activity Rank (Best First)</option>
@@ -371,10 +417,10 @@
         </div>
 
         <!-- Sticky Multi-Select Action Bar (Requirement 8) -->
-        <div class="software-card p-3.5 px-5 flex flex-col sm:flex-row items-center justify-between gap-3 border border-white/[0.08] bg-black/40">
-          <div class="flex items-center space-x-3 text-xs">
+        <div class="software-card p-3 sm:p-3.5 px-3 sm:px-5 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 border border-white/[0.08] bg-black/40">
+          <div class="flex flex-wrap items-center justify-between sm:justify-start gap-2 sm:space-x-3 text-xs">
             <span id="finder-result-count" class="font-bold text-gray-200">Found 0 verified groups</span>
-            <span class="text-gray-600">|</span>
+            <span class="text-gray-600 hidden sm:inline">|</span>
             <div class="flex items-center space-x-1.5">
               <button onclick="selectAllFinderGroups(true)" class="text-indigo-400 hover:text-indigo-300 font-semibold px-1.5 py-0.5 rounded hover:bg-white/[0.04]">Select All</button>
               <span class="text-gray-600">&bull;</span>
@@ -383,12 +429,12 @@
             <span id="finder-selected-pill" class="text-[11px] font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 px-2 py-0.5 rounded-full">0 Selected</span>
           </div>
 
-          <div class="flex items-center space-x-2">
-            <button onclick="saveSelectedFinderGroups()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs px-3.5 py-1.5 rounded-lg flex items-center gap-1.5 shadow-md shadow-emerald-600/20 transition">
+          <div class="grid grid-cols-1 sm:grid-cols-2 md:flex items-center gap-2">
+            <button onclick="saveSelectedFinderGroups()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs px-3.5 py-2 sm:py-1.5 rounded-lg flex items-center justify-center gap-1.5 shadow-md shadow-emerald-600/20 transition">
               <i data-lucide="bookmark-plus" class="w-3.5 h-3.5"></i>
               <span>Save to My Groups</span>
             </button>
-            <button onclick="sendSelectedFinderToPoster()" class="btn-primary-action font-semibold text-xs px-3.5 py-1.5 rounded-lg flex items-center gap-1.5">
+            <button onclick="sendSelectedFinderToPoster()" class="btn-primary-action font-semibold text-xs px-3.5 py-2 sm:py-1.5 rounded-lg flex items-center justify-center gap-1.5">
               <i data-lucide="send" class="w-3.5 h-3.5"></i>
               <span>1-Click Post to Selected</span>
             </button>
@@ -396,17 +442,17 @@
         </div>
 
         <!-- Discovered Groups Results Grid -->
-        <div id="finder-results-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+        <div id="finder-results-grid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4"></div>
       </section>
 
       <!-- ===================================================================== -->
       <!-- VIEW 1: ONE-CLICK MULTI-POSTER                                        -->
       <!-- ===================================================================== -->
       <section id="tab-oneclick" class="tab-content hidden space-y-6">
-        <div class="software-card p-6 space-y-6">
+        <div class="software-card p-4 sm:p-6 space-y-4 sm:space-y-6">
           <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-white/[0.06] gap-2">
             <div>
-              <h2 class="text-lg font-bold text-white flex items-center gap-2">
+              <h2 class="text-base sm:text-lg font-bold text-white flex items-center gap-2">
                 <i data-lucide="send" class="w-5 h-5 text-indigo-400"></i> One-Click Multi-Poster Studio
               </h2>
               <p class="text-xs text-gray-400">Post any blog article or video to multiple Facebook groups and pages with custom repetitions.</p>
@@ -417,9 +463,9 @@
             </div>
           </div>
 
-          <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-6">
             <!-- Left Config Column (7 cols) -->
-            <div class="lg:col-span-7 space-y-5">
+            <div class="lg:col-span-7 space-y-4 sm:space-y-5">
               <!-- Select Post -->
               <div class="space-y-2">
                 <div class="flex justify-between items-center">
@@ -443,9 +489,9 @@
                   </label>
                   <span class="text-[10px] text-cyan-400 font-semibold bg-cyan-500/10 border border-cyan-500/20 px-2 py-0.5 rounded">Auto UTM + GA4</span>
                 </div>
-                <div class="flex gap-2">
+                <div class="flex flex-col sm:flex-row gap-2">
                   <input type="url" id="oneclick-website-url" placeholder="https://yourwebsite.com/article-slug (Unique /t/:id generated for each group)" class="flex-1 bg-black/50 border border-white/[0.08] rounded-xl px-3.5 py-2 text-xs text-gray-200 focus:outline-none focus:border-cyan-500">
-                  <button type="button" onclick="scrapeTargetWebsiteUrl()" class="bg-cyan-600/20 hover:bg-cyan-600/30 text-cyan-300 border border-cyan-500/30 px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition">
+                  <button type="button" onclick="scrapeTargetWebsiteUrl()" class="bg-cyan-600/20 hover:bg-cyan-600/30 text-cyan-300 border border-cyan-500/30 px-3 py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition whitespace-nowrap">
                     <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
                     <span>Fetch Preview</span>
                   </button>
@@ -453,14 +499,14 @@
               </div>
 
               <!-- Facebook Preview Card -->
-              <div class="software-card p-4 space-y-3">
+              <div class="software-card p-3 sm:p-4 space-y-3">
                 <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider flex items-center justify-between">
                   <span>Facebook Live Post Preview</span>
                   <span class="text-indigo-400 font-mono text-[10px]">What audience sees</span>
                 </span>
-                <div class="border border-white/[0.08] rounded-xl bg-black/60 p-4 space-y-3">
+                <div class="border border-white/[0.08] rounded-xl bg-black/60 p-3 sm:p-4 space-y-3">
                   <div class="flex items-center space-x-2.5">
-                    <div class="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold text-xs">FB</div>
+                    <div class="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold text-xs shrink-0">FB</div>
                     <div>
                       <div class="text-xs font-semibold text-gray-200">Your Facebook Account</div>
                       <div class="text-[10px] text-gray-500">Just now • 👥 Public / Group</div>
@@ -502,7 +548,7 @@
             </div>
 
             <!-- Right Target & Repeat Column (5 cols) -->
-            <div class="lg:col-span-5 space-y-5">
+            <div class="lg:col-span-5 space-y-4 sm:space-y-5">
               <div class="space-y-3">
                 <div class="flex items-center justify-between">
                   <label class="text-xs font-bold uppercase tracking-wider text-gray-300 flex items-center gap-2">
@@ -530,12 +576,12 @@
               </div>
 
               <!-- Multi-Post Repetition & Delays -->
-              <div class="software-card p-4 space-y-3">
+              <div class="software-card p-3 sm:p-4 space-y-3">
                 <label class="text-xs font-bold uppercase tracking-wider text-gray-300 flex items-center gap-2">
                   <span class="w-5 h-5 rounded-full bg-indigo-600/40 text-indigo-300 border border-indigo-500/30 flex items-center justify-center text-xs">4</span>
                   Multi-Post Repetitions & Interval
                 </label>
-                <div class="grid grid-cols-2 gap-3">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label class="text-[11px] text-gray-400 block mb-1">Repeat Cycle</label>
                     <select id="oneclick-repeat-count" class="w-full bg-black/50 border border-white/[0.08] rounded-lg px-2.5 py-1.5 text-xs text-gray-200">
@@ -548,10 +594,10 @@
                   </div>
                   <div>
                     <label class="text-[11px] text-gray-400 block mb-1">Delay Range (Sec)</label>
-                    <div class="flex items-center space-x-1">
-                      <input type="number" id="oneclick-delay-min" value="45" min="15" class="w-14 bg-black/50 border border-white/[0.08] rounded-lg px-2 py-1.5 text-xs text-center text-gray-200">
+                    <div class="flex items-center space-x-1.5">
+                      <input type="number" id="oneclick-delay-min" value="45" min="15" class="w-full bg-black/50 border border-white/[0.08] rounded-lg px-2 py-1.5 text-xs text-center text-gray-200">
                       <span class="text-gray-500 text-xs">-</span>
-                      <input type="number" id="oneclick-delay-max" value="90" min="20" class="w-14 bg-black/50 border border-white/[0.08] rounded-lg px-2 py-1.5 text-xs text-center text-gray-200">
+                      <input type="number" id="oneclick-delay-max" value="90" min="20" class="w-full bg-black/50 border border-white/[0.08] rounded-lg px-2 py-1.5 text-xs text-center text-gray-200">
                     </div>
                   </div>
                 </div>
@@ -578,88 +624,88 @@
       <!-- ===================================================================== -->
       <section id="tab-overview" class="tab-content hidden space-y-6">
         <!-- Top Metrics Row 1: Groups & Discovery -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div class="software-card p-5">
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+          <div class="software-card p-3.5 sm:p-5">
             <div class="flex items-center justify-between">
-              <span class="text-xs font-semibold uppercase tracking-wider text-gray-400">Groups Discovered</span>
-              <div class="p-2 bg-emerald-500/10 text-emerald-400 rounded-lg"><i data-lucide="compass" class="w-4 h-4"></i></div>
+              <span class="text-[11px] sm:text-xs font-semibold uppercase tracking-wider text-gray-400 truncate">Groups Discovered</span>
+              <div class="p-1.5 sm:p-2 bg-emerald-500/10 text-emerald-400 rounded-lg shrink-0"><i data-lucide="compass" class="w-4 h-4"></i></div>
             </div>
-            <div class="text-2xl font-bold mt-2 text-white" id="stat-discovered">31</div>
-            <span class="text-xs text-emerald-400 mt-1 block flex items-center gap-1">
-              <i data-lucide="globe" class="w-3 h-3"></i> 15+ countries indexed
+            <div class="text-xl sm:text-2xl font-bold mt-2 text-white" id="stat-discovered">31</div>
+            <span class="text-[11px] sm:text-xs text-emerald-400 mt-1 block flex items-center gap-1">
+              <i data-lucide="globe" class="w-3 h-3"></i> 15+ countries
             </span>
           </div>
 
-          <div class="software-card p-5 border border-emerald-500/20 bg-emerald-950/10">
+          <div class="software-card p-3.5 sm:p-5 border border-emerald-500/20 bg-emerald-950/10">
             <div class="flex items-center justify-between">
-              <span class="text-xs font-semibold uppercase tracking-wider text-emerald-400 font-bold">Verified Direct Post</span>
-              <div class="p-2 bg-emerald-500/20 text-emerald-300 rounded-lg"><i data-lucide="shield-check" class="w-4 h-4"></i></div>
+              <span class="text-[11px] sm:text-xs font-semibold uppercase tracking-wider text-emerald-400 font-bold truncate">Verified Direct Post</span>
+              <div class="p-1.5 sm:p-2 bg-emerald-500/20 text-emerald-300 rounded-lg shrink-0"><i data-lucide="shield-check" class="w-4 h-4"></i></div>
             </div>
-            <div class="text-2xl font-bold mt-2 text-emerald-300" id="stat-verified-no-approval">28</div>
-            <span class="text-xs text-gray-400 mt-1 block">No Admin Approval Required</span>
+            <div class="text-xl sm:text-2xl font-bold mt-2 text-emerald-300" id="stat-verified-no-approval">28</div>
+            <span class="text-[11px] sm:text-xs text-gray-400 mt-1 block truncate">No Admin Approval</span>
           </div>
 
-          <div class="software-card p-5">
+          <div class="software-card p-3.5 sm:p-5">
             <div class="flex items-center justify-between">
-              <span class="text-xs font-semibold uppercase tracking-wider text-gray-400">Saved Target Groups</span>
-              <div class="p-2 bg-blue-500/10 text-blue-400 rounded-lg"><i data-lucide="users" class="w-4 h-4"></i></div>
+              <span class="text-[11px] sm:text-xs font-semibold uppercase tracking-wider text-gray-400 truncate">Saved Groups</span>
+              <div class="p-1.5 sm:p-2 bg-blue-500/10 text-blue-400 rounded-lg shrink-0"><i data-lucide="users" class="w-4 h-4"></i></div>
             </div>
-            <div class="text-2xl font-bold mt-2 text-white" id="stat-groups">0</div>
-            <span class="text-xs text-gray-400 mt-1 block">Joined: <span id="stat-joined" class="text-indigo-400 font-semibold">0</span> | Pending: <span id="stat-pending" class="text-amber-400">0</span></span>
+            <div class="text-xl sm:text-2xl font-bold mt-2 text-white" id="stat-groups">0</div>
+            <span class="text-[11px] sm:text-xs text-gray-400 mt-1 block truncate">Joined: <span id="stat-joined" class="text-indigo-400 font-semibold">0</span> | Pending: <span id="stat-pending" class="text-amber-400">0</span></span>
           </div>
 
-          <div class="software-card p-5">
+          <div class="software-card p-3.5 sm:p-5">
             <div class="flex items-center justify-between">
-              <span class="text-xs font-semibold uppercase tracking-wider text-gray-400">Catalog Posts & Videos</span>
-              <div class="p-2 bg-indigo-500/10 text-indigo-400 rounded-lg"><i data-lucide="file-text" class="w-4 h-4"></i></div>
+              <span class="text-[11px] sm:text-xs font-semibold uppercase tracking-wider text-gray-400 truncate">Catalog Posts</span>
+              <div class="p-1.5 sm:p-2 bg-indigo-500/10 text-indigo-400 rounded-lg shrink-0"><i data-lucide="file-text" class="w-4 h-4"></i></div>
             </div>
-            <div class="text-2xl font-bold mt-2 text-white" id="stat-posts">0</div>
-            <span class="text-xs text-gray-400 mt-1 block">Articles, videos, & links ready</span>
+            <div class="text-xl sm:text-2xl font-bold mt-2 text-white" id="stat-posts">0</div>
+            <span class="text-[11px] sm:text-xs text-gray-400 mt-1 block truncate">Articles, videos ready</span>
           </div>
         </div>
 
         <!-- Metrics Row 2: Traffic & Publishing (Requirement 13 & 14) -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div class="software-card p-5 border border-cyan-500/20 bg-cyan-950/10">
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+          <div class="software-card p-3.5 sm:p-5 border border-cyan-500/20 bg-cyan-950/10">
             <div class="flex items-center justify-between">
-              <span class="text-xs font-semibold uppercase tracking-wider text-cyan-400 font-bold">Total Website Clicks</span>
-              <div class="p-2 bg-cyan-500/20 text-cyan-300 rounded-lg"><i data-lucide="mouse-pointer-click" class="w-4 h-4"></i></div>
+              <span class="text-[11px] sm:text-xs font-semibold uppercase tracking-wider text-cyan-400 font-bold truncate">Total Clicks</span>
+              <div class="p-1.5 sm:p-2 bg-cyan-500/20 text-cyan-300 rounded-lg shrink-0"><i data-lucide="mouse-pointer-click" class="w-4 h-4"></i></div>
             </div>
-            <div class="text-2xl font-bold mt-2 text-cyan-300" id="stat-clicks">0</div>
-            <span class="text-xs text-gray-400 mt-1 block">Clicks from Facebook groups</span>
+            <div class="text-xl sm:text-2xl font-bold mt-2 text-cyan-300" id="stat-clicks">0</div>
+            <span class="text-[11px] sm:text-xs text-gray-400 mt-1 block truncate">From Facebook groups</span>
           </div>
 
-          <div class="software-card p-5 border border-purple-500/20 bg-purple-950/10">
+          <div class="software-card p-3.5 sm:p-5 border border-purple-500/20 bg-purple-950/10">
             <div class="flex items-center justify-between">
-              <span class="text-xs font-semibold uppercase tracking-wider text-purple-400 font-bold">Actual Unique Visitors</span>
-              <div class="p-2 bg-purple-500/20 text-purple-300 rounded-lg"><i data-lucide="user-check" class="w-4 h-4"></i></div>
+              <span class="text-[11px] sm:text-xs font-semibold uppercase tracking-wider text-purple-400 font-bold truncate">Unique Visitors</span>
+              <div class="p-1.5 sm:p-2 bg-purple-500/20 text-purple-300 rounded-lg shrink-0"><i data-lucide="user-check" class="w-4 h-4"></i></div>
             </div>
-            <div class="text-2xl font-bold mt-2 text-purple-300" id="stat-visitors">0</div>
-            <span class="text-xs text-gray-400 mt-1 block">Sessions: <span id="stat-sessions" class="text-purple-300 font-semibold">0</span> (Deduplicated)</span>
+            <div class="text-xl sm:text-2xl font-bold mt-2 text-purple-300" id="stat-visitors">0</div>
+            <span class="text-[11px] sm:text-xs text-gray-400 mt-1 block truncate">Sessions: <span id="stat-sessions" class="text-purple-300 font-semibold">0</span></span>
           </div>
 
-          <div class="software-card p-5">
+          <div class="software-card p-3.5 sm:p-5">
             <div class="flex items-center justify-between">
-              <span class="text-xs font-semibold uppercase tracking-wider text-gray-400">Successful Posts</span>
-              <div class="p-2 bg-emerald-500/10 text-emerald-400 rounded-lg"><i data-lucide="check-circle-2" class="w-4 h-4"></i></div>
+              <span class="text-[11px] sm:text-xs font-semibold uppercase tracking-wider text-gray-400 truncate">Successful Posts</span>
+              <div class="p-1.5 sm:p-2 bg-emerald-500/10 text-emerald-400 rounded-lg shrink-0"><i data-lucide="check-circle-2" class="w-4 h-4"></i></div>
             </div>
-            <div class="text-2xl font-bold mt-2 text-emerald-400" id="stat-success">0</div>
-            <span class="text-xs text-gray-400 mt-1 block">Manual: <span id="stat-manual" class="text-indigo-400 font-semibold">0</span> | Failed: <span id="stat-failed" class="text-red-400">0</span></span>
+            <div class="text-xl sm:text-2xl font-bold mt-2 text-emerald-400" id="stat-success">0</div>
+            <span class="text-[11px] sm:text-xs text-gray-400 mt-1 block truncate">Manual: <span id="stat-manual" class="text-indigo-400 font-semibold">0</span></span>
           </div>
 
-          <div class="software-card p-5">
+          <div class="software-card p-3.5 sm:p-5">
             <div class="flex items-center justify-between">
-              <span class="text-xs font-semibold uppercase tracking-wider text-gray-400">24/7 Campaigns</span>
-              <div class="p-2 bg-amber-500/10 text-amber-400 rounded-lg"><i data-lucide="clock" class="w-4 h-4"></i></div>
+              <span class="text-[11px] sm:text-xs font-semibold uppercase tracking-wider text-gray-400 truncate">24/7 Campaigns</span>
+              <div class="p-1.5 sm:p-2 bg-amber-500/10 text-amber-400 rounded-lg shrink-0"><i data-lucide="clock" class="w-4 h-4"></i></div>
             </div>
-            <div class="text-2xl font-bold mt-2 text-amber-400" id="stat-campaigns">0</div>
-            <span class="text-xs text-gray-400 mt-1 block">Automated schedulers</span>
+            <div class="text-xl sm:text-2xl font-bold mt-2 text-amber-400" id="stat-campaigns">0</div>
+            <span class="text-[11px] sm:text-xs text-gray-400 mt-1 block truncate">Active schedulers</span>
           </div>
         </div>
 
         <!-- Quick Launch Shortcuts -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div onclick="switchTab('groupfinder')" class="software-card p-4 hover:border-emerald-500/40 transition cursor-pointer flex items-center space-x-3.5 bg-emerald-500/5">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+          <div onclick="switchTab('groupfinder')" class="software-card p-3.5 sm:p-4 hover:border-emerald-500/40 transition cursor-pointer flex items-center space-x-3.5 bg-emerald-500/5">
             <div class="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
               <i data-lucide="compass" class="w-5 h-5"></i>
             </div>
@@ -669,7 +715,7 @@
             </div>
           </div>
 
-          <div onclick="switchTab('analytics')" class="software-card p-4 hover:border-cyan-500/40 transition cursor-pointer flex items-center space-x-3.5 bg-cyan-500/5">
+          <div onclick="switchTab('analytics')" class="software-card p-3.5 sm:p-4 hover:border-cyan-500/40 transition cursor-pointer flex items-center space-x-3.5 bg-cyan-500/5">
             <div class="w-10 h-10 rounded-xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center shrink-0">
               <i data-lucide="bar-chart-3" class="w-5 h-5"></i>
             </div>
@@ -679,7 +725,7 @@
             </div>
           </div>
 
-          <div onclick="switchTab('oneclick')" class="software-card p-4 hover:border-indigo-500/40 transition cursor-pointer flex items-center space-x-3.5 bg-indigo-500/5">
+          <div onclick="switchTab('oneclick')" class="software-card p-3.5 sm:p-4 hover:border-indigo-500/40 transition cursor-pointer flex items-center space-x-3.5 bg-indigo-500/5 sm:col-span-2 lg:col-span-1">
             <div class="w-10 h-10 rounded-xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center shrink-0">
               <i data-lucide="send" class="w-5 h-5"></i>
             </div>
@@ -691,7 +737,7 @@
         </div>
 
         <!-- Live Activity Console -->
-        <div class="software-card p-5 space-y-3">
+        <div class="software-card p-4 sm:p-5 space-y-3">
           <div class="flex items-center justify-between border-b border-white/[0.06] pb-3">
             <div class="flex items-center space-x-2">
               <span class="w-2.5 h-2.5 rounded-full bg-indigo-500 pulse-green"></span>
@@ -699,7 +745,7 @@
             </div>
             <button onclick="clearDashboardLogs()" class="text-xs text-gray-500 hover:text-gray-300">Clear</button>
           </div>
-          <div id="overview-console-log" class="bg-black/60 border border-white/[0.06] rounded-xl p-3 h-48 font-mono-code text-xs text-gray-300 overflow-y-auto space-y-1">
+          <div id="overview-console-log" class="bg-black/60 border border-white/[0.06] rounded-xl p-3 h-36 sm:h-48 font-mono-code text-xs text-gray-300 overflow-y-auto space-y-1">
             <div class="text-gray-500 italic">Connected to live automation logs. Ready for job launch...</div>
           </div>
         </div>
@@ -743,29 +789,29 @@
       <!-- VIEW 4: MY JOINED & SAVED GROUPS (Requirement 7 & 15)                 -->
       <!-- ===================================================================== -->
       <section id="tab-groups" class="tab-content hidden space-y-6">
-        <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
+        <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-3">
           <div>
-            <h2 class="text-lg font-bold text-white flex items-center gap-2">
+            <h2 class="text-base sm:text-lg font-bold text-white flex items-center gap-2">
               <i data-lucide="users" class="w-5 h-5 text-indigo-400"></i> My Joined & Saved Facebook Groups
             </h2>
             <p class="text-xs text-gray-400">Manage saved groups, verify post approval settings, and track joining statuses.</p>
           </div>
-          <div class="flex flex-wrap items-center gap-2">
+          <div class="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2">
             <!-- Duplicate Cleaner (Requirement 15) -->
-            <button onclick="handleDeduplicateGroups()" class="bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/30 px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition" title="Scan and delete duplicate group URLs">
+            <button onclick="handleDeduplicateGroups()" class="bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/30 px-3 py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition" title="Scan and delete duplicate group URLs">
               <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
               <span>Remove Duplicates</span>
             </button>
             <!-- Recheck Approval (Requirement 4 & 7) -->
-            <button onclick="recheckSavedGroupsApproval()" class="bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition">
+            <button onclick="recheckSavedGroupsApproval()" class="bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 px-3 py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition">
               <i data-lucide="shield-alert" class="w-3.5 h-3.5"></i>
               <span>Recheck Approval</span>
             </button>
-            <button onclick="openBulkGroupModal()" class="bg-white/[0.06] hover:bg-white/[0.1] text-gray-200 border border-white/[0.08] px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition">
+            <button onclick="openBulkGroupModal()" class="bg-white/[0.06] hover:bg-white/[0.1] text-gray-200 border border-white/[0.08] px-3 py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition">
               <i data-lucide="file-spreadsheet" class="w-3.5 h-3.5 text-emerald-400"></i>
-              <span>Bulk Import URLs</span>
+              <span>Bulk Import</span>
             </button>
-            <button onclick="openNewGroupModal()" class="btn-primary-action px-3.5 py-2 rounded-xl text-xs flex items-center gap-1.5">
+            <button onclick="openNewGroupModal()" class="btn-primary-action px-3.5 py-2 rounded-xl text-xs flex items-center justify-center gap-1.5">
               <i data-lucide="plus" class="w-3.5 h-3.5"></i>
               <span>Add Group</span>
             </button>
@@ -773,17 +819,17 @@
         </div>
 
         <!-- Filter Sub-Tabs for Saved Groups -->
-        <div class="flex flex-wrap items-center justify-between gap-3 bg-white/[0.02] border border-white/[0.06] p-2.5 rounded-xl">
-          <div class="flex items-center space-x-1 text-xs">
-            <button onclick="filterSavedGroupsByStatus('ALL')" class="saved-filter-pill active px-3 py-1 rounded-lg text-gray-300 font-medium hover:text-white" id="filter-saved-all">All (<span id="count-saved-all">0</span>)</button>
-            <button onclick="filterSavedGroupsByStatus('JOINED')" class="saved-filter-pill px-3 py-1 rounded-lg text-gray-400 font-medium hover:text-white" id="filter-saved-joined">Joined (<span id="count-saved-joined">0</span>)</button>
-            <button onclick="filterSavedGroupsByStatus('PENDING')" class="saved-filter-pill px-3 py-1 rounded-lg text-gray-400 font-medium hover:text-white" id="filter-saved-pending">Pending (<span id="count-saved-pending">0</span>)</button>
-            <button onclick="filterSavedGroupsByStatus('NOT_JOINED')" class="saved-filter-pill px-3 py-1 rounded-lg text-gray-400 font-medium hover:text-white" id="filter-saved-not-joined">Not Joined (<span id="count-saved-not-joined">0</span>)</button>
-            <button onclick="filterSavedGroupsByStatus('NO_APPROVAL')" class="saved-filter-pill px-3 py-1 rounded-lg text-emerald-400 font-semibold hover:text-emerald-300" id="filter-saved-no-approval">🛡️ Direct Post Only (<span id="count-saved-no-approval">0</span>)</button>
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white/[0.02] border border-white/[0.06] p-2.5 rounded-xl">
+          <div class="flex items-center space-x-1 text-xs overflow-x-auto pb-1.5 sm:pb-0 max-w-full scrollbar-none whitespace-nowrap">
+            <button onclick="filterSavedGroupsByStatus('ALL')" class="saved-filter-pill active px-3 py-1.5 sm:py-1 rounded-lg text-gray-300 font-medium hover:text-white shrink-0" id="filter-saved-all">All (<span id="count-saved-all">0</span>)</button>
+            <button onclick="filterSavedGroupsByStatus('JOINED')" class="saved-filter-pill px-3 py-1.5 sm:py-1 rounded-lg text-gray-400 font-medium hover:text-white shrink-0" id="filter-saved-joined">Joined (<span id="count-saved-joined">0</span>)</button>
+            <button onclick="filterSavedGroupsByStatus('PENDING')" class="saved-filter-pill px-3 py-1.5 sm:py-1 rounded-lg text-gray-400 font-medium hover:text-white shrink-0" id="filter-saved-pending">Pending (<span id="count-saved-pending">0</span>)</button>
+            <button onclick="filterSavedGroupsByStatus('NOT_JOINED')" class="saved-filter-pill px-3 py-1.5 sm:py-1 rounded-lg text-gray-400 font-medium hover:text-white shrink-0" id="filter-saved-not-joined">Not Joined (<span id="count-saved-not-joined">0</span>)</button>
+            <button onclick="filterSavedGroupsByStatus('NO_APPROVAL')" class="saved-filter-pill px-3 py-1.5 sm:py-1 rounded-lg text-emerald-400 font-semibold hover:text-emerald-300 shrink-0" id="filter-saved-no-approval">🛡️ Direct Post (<span id="count-saved-no-approval">0</span>)</button>
           </div>
-          <div class="flex items-center space-x-2">
+          <div class="flex items-center justify-between sm:justify-end space-x-2 pt-2 sm:pt-0 border-t sm:border-t-0 border-white/[0.06]">
             <span id="saved-selected-badge" class="text-[11px] font-bold text-gray-400">0 selected</span>
-            <button onclick="sendSavedSelectedToPoster()" class="btn-primary-action px-3 py-1 rounded-lg text-xs font-semibold flex items-center gap-1">
+            <button onclick="sendSavedSelectedToPoster()" class="btn-primary-action px-3 py-1.5 sm:py-1 rounded-lg text-xs font-semibold flex items-center gap-1">
               <i data-lucide="send" class="w-3 h-3"></i> Post to Selected
             </button>
           </div>
@@ -791,8 +837,8 @@
 
         <!-- Saved Groups Table -->
         <div class="software-card overflow-hidden">
-          <div class="overflow-x-auto">
-            <table class="w-full text-left text-xs">
+          <div class="overflow-x-auto -mx-1 sm:mx-0">
+            <table class="w-full text-left text-xs min-w-[780px]">
               <thead class="bg-white/[0.02] border-b border-white/[0.06] text-gray-400 uppercase tracking-wider font-semibold">
                 <tr>
                   <th class="w-8 px-4 py-3"><input type="checkbox" id="saved-select-all" onchange="toggleSelectAllSaved(this.checked)" class="w-4 h-4 accent-indigo-600 rounded cursor-pointer"></th>
@@ -817,30 +863,30 @@
       <!-- ===================================================================== -->
       <!-- VIEW: WEBSITE TRAFFIC TRACKING & GA4 (Requirement 10 & 13)            -->
       <!-- ===================================================================== -->
-      <section id="tab-analytics" class="tab-content hidden space-y-6">
+      <section id="tab-analytics" class="tab-content hidden space-y-4 sm:space-y-6">
         <!-- Title & Executive Action Bar -->
-        <div class="software-card p-6 space-y-5">
-          <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-white/[0.06] gap-3">
+        <div class="software-card p-4 sm:p-6 space-y-4 sm:space-y-5">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-3 sm:pb-4 border-b border-white/[0.06] gap-3">
             <div>
               <div class="flex items-center gap-2.5">
-                <div class="w-8 h-8 rounded-lg bg-cyan-500/20 text-cyan-400 flex items-center justify-center font-bold">
+                <div class="w-8 h-8 rounded-lg bg-cyan-500/20 text-cyan-400 flex items-center justify-center font-bold shrink-0">
                   <i data-lucide="bar-chart-3" class="w-4 h-4"></i>
                 </div>
                 <div>
-                  <h2 class="text-lg font-bold text-white flex items-center gap-2">
-                    Website Traffic Tracking & Analytics
+                  <h2 class="text-base sm:text-lg font-bold text-white flex flex-wrap items-center gap-2">
+                    <span>Website Traffic Tracking & Analytics</span>
                     <span class="text-[10px] font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 px-2 py-0.5 rounded-full uppercase">UTM + GA4 Attribution</span>
                   </h2>
                   <p class="text-xs text-gray-400">Track genuine website visitors, unique sessions, country distribution, and group conversion rates.</p>
                 </div>
               </div>
             </div>
-            <div class="flex items-center space-x-2">
-              <button onclick="refreshTrafficAnalytics()" class="bg-white/[0.06] hover:bg-white/[0.1] text-gray-200 border border-white/[0.08] px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition">
+            <div class="flex items-center space-x-2 shrink-0">
+              <button onclick="refreshTrafficAnalytics()" class="bg-white/[0.06] hover:bg-white/[0.1] text-gray-200 border border-white/[0.08] px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition">
                 <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
                 <span>Refresh Live Stats</span>
               </button>
-              <button onclick="openGa4Modal()" class="btn-primary-action px-3.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5">
+              <button onclick="openGa4Modal()" class="btn-primary-action px-3 sm:px-3.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5">
                 <i data-lucide="settings-2" class="w-3.5 h-3.5"></i>
                 <span>GA4 Setup</span>
               </button>
@@ -848,53 +894,55 @@
           </div>
 
           <!-- Top Analytics KPIs: Link clicks and actual visitors separated! -->
-          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div class="bg-black/50 border border-cyan-500/30 rounded-xl p-4">
+          <div class="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
+            <div class="bg-black/50 border border-cyan-500/30 rounded-xl p-3 sm:p-4">
               <div class="flex items-center justify-between">
-                <span class="text-xs font-semibold uppercase tracking-wider text-cyan-400">Total Link Clicks</span>
-                <div class="p-1.5 bg-cyan-500/20 text-cyan-300 rounded-lg"><i data-lucide="mouse-pointer-click" class="w-4 h-4"></i></div>
+                <span class="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-cyan-400">Total Clicks</span>
+                <div class="p-1 sm:p-1.5 bg-cyan-500/20 text-cyan-300 rounded-lg"><i data-lucide="mouse-pointer-click" class="w-3.5 h-3.5 sm:w-4 sm:h-4"></i></div>
               </div>
-              <div class="text-3xl font-bold mt-2 text-white" id="traffic-total-clicks">0</div>
-              <span class="text-xs text-gray-400 mt-1 block">Raw clicks on group links</span>
+              <div class="text-xl sm:text-3xl font-bold mt-1.5 sm:mt-2 text-white" id="traffic-total-clicks">0</div>
+              <span class="text-[10px] sm:text-xs text-gray-400 mt-0.5 sm:mt-1 block truncate">Raw clicks on group links</span>
             </div>
 
-            <div class="bg-black/50 border border-purple-500/30 rounded-xl p-4">
+            <div class="bg-black/50 border border-purple-500/30 rounded-xl p-3 sm:p-4">
               <div class="flex items-center justify-between">
-                <span class="text-xs font-semibold uppercase tracking-wider text-purple-400">Actual Website Visitors</span>
-                <div class="p-1.5 bg-purple-500/20 text-purple-300 rounded-lg"><i data-lucide="user-check" class="w-4 h-4"></i></div>
+                <span class="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-purple-400">Real Visitors</span>
+                <div class="p-1 sm:p-1.5 bg-purple-500/20 text-purple-300 rounded-lg"><i data-lucide="user-check" class="w-3.5 h-3.5 sm:w-4 sm:h-4"></i></div>
               </div>
-              <div class="text-3xl font-bold mt-2 text-purple-300" id="traffic-unique-visitors">0</div>
-              <span class="text-xs text-gray-400 mt-1 block">Deduplicated unique visitors</span>
+              <div class="text-xl sm:text-3xl font-bold mt-1.5 sm:mt-2 text-purple-300" id="traffic-unique-visitors">0</div>
+              <span class="text-[10px] sm:text-xs text-gray-400 mt-0.5 sm:mt-1 block truncate">Deduplicated unique visitors</span>
             </div>
 
-            <div class="bg-black/50 border border-emerald-500/30 rounded-xl p-4">
+            <div class="bg-black/50 border border-emerald-500/30 rounded-xl p-3 sm:p-4">
               <div class="flex items-center justify-between">
-                <span class="text-xs font-semibold uppercase tracking-wider text-emerald-400">Website Sessions</span>
-                <div class="p-1.5 bg-emerald-500/20 text-emerald-300 rounded-lg"><i data-lucide="activity" class="w-4 h-4"></i></div>
+                <span class="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-emerald-400">Web Sessions</span>
+                <div class="p-1 sm:p-1.5 bg-emerald-500/20 text-emerald-300 rounded-lg"><i data-lucide="activity" class="w-3.5 h-3.5 sm:w-4 sm:h-4"></i></div>
               </div>
-              <div class="text-3xl font-bold mt-2 text-emerald-300" id="traffic-sessions">0</div>
-              <span class="text-xs text-gray-400 mt-1 block">Active browsing sessions</span>
+              <div class="text-xl sm:text-3xl font-bold mt-1.5 sm:mt-2 text-emerald-300" id="traffic-sessions">0</div>
+              <span class="text-[10px] sm:text-xs text-gray-400 mt-0.5 sm:mt-1 block truncate">Active browsing sessions</span>
             </div>
 
-            <div class="bg-black/50 border border-amber-500/30 rounded-xl p-4">
+            <div class="bg-black/50 border border-amber-500/30 rounded-xl p-3 sm:p-4">
               <div class="flex items-center justify-between">
-                <span class="text-xs font-semibold uppercase tracking-wider text-amber-400">Click-to-Visitor Rate</span>
-                <div class="p-1.5 bg-amber-500/20 text-amber-300 rounded-lg"><i data-lucide="percent" class="w-4 h-4"></i></div>
+                <span class="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-amber-400">Conv. Rate</span>
+                <div class="p-1 sm:p-1.5 bg-amber-500/20 text-amber-300 rounded-lg"><i data-lucide="percent" class="w-3.5 h-3.5 sm:w-4 sm:h-4"></i></div>
               </div>
-              <div class="text-3xl font-bold mt-2 text-amber-300" id="traffic-conversion-rate">0%</div>
-              <span class="text-xs text-gray-400 mt-1 block">Visitor conversion efficiency</span>
+              <div class="text-xl sm:text-3xl font-bold mt-1.5 sm:mt-2 text-amber-300" id="traffic-conversion-rate">0%</div>
+              <span class="text-[10px] sm:text-xs text-gray-400 mt-0.5 sm:mt-1 block truncate">Visitor efficiency</span>
             </div>
           </div>
 
           <!-- Instant Live Click Simulator (For Testing & First Working Demo!) -->
-          <div class="bg-white/[0.03] border border-white/[0.08] p-3.5 rounded-xl flex flex-col md:flex-row items-center justify-between gap-3">
+          <div class="bg-white/[0.03] border border-white/[0.08] p-3 sm:p-3.5 rounded-xl flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
             <div class="flex items-center gap-2 text-xs">
-              <span class="p-1 bg-amber-500/20 text-amber-400 rounded"><i data-lucide="zap" class="w-4 h-4"></i></span>
-              <span class="font-bold text-gray-200">First Working Demo Tool:</span>
-              <span class="text-gray-400">Simulate a live group visitor click to test attribution in 1 click:</span>
+              <span class="p-1 bg-amber-500/20 text-amber-400 rounded shrink-0"><i data-lucide="zap" class="w-4 h-4"></i></span>
+              <div class="flex flex-col sm:flex-row sm:items-center gap-0.5 sm:gap-1.5">
+                <span class="font-bold text-gray-200">First Working Demo Tool:</span>
+                <span class="text-gray-400">Simulate a live group visitor click to test attribution:</span>
+              </div>
             </div>
             <div class="flex items-center gap-2 w-full md:w-auto">
-              <select id="sim-country" class="bg-black/60 border border-white/[0.1] rounded-lg px-2.5 py-1.5 text-xs text-gray-200">
+              <select id="sim-country" class="bg-black/60 border border-white/[0.1] rounded-lg px-2.5 py-1.5 text-xs text-gray-200 flex-1 md:flex-none">
                 <option value="US">🇺🇸 United States</option>
                 <option value="GB">🇬🇧 United Kingdom</option>
                 <option value="CA">🇨🇦 Canada</option>
@@ -906,28 +954,28 @@
                 <option value="PH">🇵🇭 Philippines</option>
                 <option value="BR">🇧🇷 Brazil</option>
               </select>
-              <button onclick="handleSimulateLiveClick()" class="btn-primary-action px-3.5 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap flex items-center gap-1.5">
+              <button onclick="handleSimulateLiveClick()" class="btn-primary-action px-3.5 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap flex items-center justify-center gap-1.5 shrink-0">
                 <i data-lucide="play" class="w-3.5 h-3.5"></i>
-                <span>Simulate Group Click</span>
+                <span>Simulate Click</span>
               </button>
             </div>
           </div>
         </div>
 
         <!-- Leaderboard & Country Breakdown Row -->
-        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6">
           <!-- Best-Performing Groups Leaderboard (7 Cols) -->
-          <div class="lg:col-span-7 software-card p-5 space-y-4">
+          <div class="lg:col-span-7 software-card p-4 sm:p-5 space-y-3 sm:space-y-4">
             <div class="flex items-center justify-between border-b border-white/[0.06] pb-3">
               <div class="flex items-center space-x-2">
                 <i data-lucide="trophy" class="w-4 h-4 text-amber-400"></i>
                 <h3 class="text-sm font-bold text-white">Best-Performing Facebook Groups</h3>
               </div>
-              <span class="text-[11px] text-gray-400">Ranked by traffic generation</span>
+              <span class="text-[11px] text-gray-400">Ranked by traffic</span>
             </div>
 
-            <div class="overflow-x-auto">
-              <table class="w-full text-left text-xs">
+            <div class="overflow-x-auto -mx-1 sm:mx-0">
+              <table class="w-full text-left text-xs min-w-[480px]">
                 <thead class="bg-white/[0.02] border-b border-white/[0.06] text-gray-400 uppercase tracking-wider font-semibold">
                   <tr>
                     <th class="px-3 py-2.5">Rank & Group</th>
@@ -992,36 +1040,36 @@
           </button>
         </div>
 
-        <div id="campaigns-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5"></div>
+        <div id="campaigns-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5"></div>
       </section>
 
       <!-- ===================================================================== -->
       <!-- VIEW 6: EXECUTION LOGS & AUDIT                                        -->
       <!-- ===================================================================== -->
-      <section id="tab-history" class="tab-content hidden space-y-6">
-        <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
+      <section id="tab-history" class="tab-content hidden space-y-4 sm:space-y-6">
+        <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-3 sm:gap-4">
           <div>
-            <h2 class="text-lg font-bold text-white flex items-center gap-2">
+            <h2 class="text-base sm:text-lg font-bold text-white flex items-center gap-2">
               <i data-lucide="activity" class="w-5 h-5 text-indigo-400"></i> System Audit & Execution History
             </h2>
             <p class="text-xs text-gray-400">Detailed records of every single post submitted to Facebook.</p>
           </div>
-          <button onclick="clearHistoryLogs()" class="bg-red-500/10 hover:bg-red-500/20 text-red-300 border border-red-500/20 px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition">
+          <button onclick="clearHistoryLogs()" class="bg-red-500/10 hover:bg-red-500/20 text-red-300 border border-red-500/20 px-3 py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition shrink-0">
             <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
             <span>Clear Logs</span>
           </button>
         </div>
 
         <div class="software-card overflow-hidden">
-          <div class="overflow-x-auto">
-            <table class="w-full text-left text-xs">
+          <div class="overflow-x-auto -mx-1 sm:mx-0">
+            <table class="w-full text-left text-xs min-w-[640px]">
               <thead class="bg-white/[0.02] border-b border-white/[0.06] text-gray-400 uppercase tracking-wider font-semibold">
                 <tr>
-                  <th class="px-5 py-3">Timestamp</th>
-                  <th class="px-4 py-3">Group Target</th>
-                  <th class="px-4 py-3">Blog Post</th>
-                  <th class="px-4 py-3">Status</th>
-                  <th class="px-5 py-3">Details</th>
+                  <th class="px-3 sm:px-5 py-3">Timestamp</th>
+                  <th class="px-3 sm:px-4 py-3">Group Target</th>
+                  <th class="px-3 sm:px-4 py-3">Blog Post</th>
+                  <th class="px-3 sm:px-4 py-3">Status</th>
+                  <th class="px-3 sm:px-5 py-3">Details</th>
                 </tr>
               </thead>
               <tbody id="history-table-body" class="divide-y divide-white/[0.04]"></tbody>
@@ -1033,20 +1081,20 @@
       <!-- ===================================================================== -->
       <!-- VIEW 7: SETTINGS & ANTI-BAN CONFIG                                    -->
       <!-- ===================================================================== -->
-      <section id="tab-settings" class="tab-content hidden space-y-6">
-        <div class="max-w-2xl software-card p-6 space-y-6">
-          <div class="border-b border-white/[0.06] pb-4">
-            <h2 class="text-lg font-bold text-white flex items-center gap-2">
+      <section id="tab-settings" class="tab-content hidden space-y-4 sm:space-y-6">
+        <div class="max-w-2xl software-card p-4 sm:p-6 space-y-5 sm:space-y-6">
+          <div class="border-b border-white/[0.06] pb-3 sm:pb-4">
+            <h2 class="text-base sm:text-lg font-bold text-white flex items-center gap-2">
               <i data-lucide="sliders" class="w-5 h-5 text-indigo-400"></i> Anti-Ban Guard & Engine Configuration
             </h2>
             <p class="text-xs text-gray-400 mt-0.5">Control jitter delays, headless Chrome modes, and spintax variations.</p>
           </div>
 
           <form id="settings-form" onsubmit="handleSaveSettings(event)" class="space-y-4">
-            <div class="bg-black/40 border border-white/[0.06] p-4 rounded-xl space-y-3">
+            <div class="bg-black/40 border border-white/[0.06] p-3.5 sm:p-4 rounded-xl space-y-3">
               <h3 class="text-xs font-bold text-indigo-300 uppercase tracking-wider">Anti-Ban Random Jitter Delay</h3>
               <p class="text-xs text-gray-400">Wait interval between successive group posts to avoid automated spam detection.</p>
-              <div class="grid grid-cols-2 gap-4">
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div>
                   <label class="text-xs text-gray-300 block mb-1">Minimum Delay (Seconds)</label>
                   <input type="number" id="setting-min-delay" min="15" max="300" class="w-full bg-black/60 border border-white/[0.08] rounded-lg px-3 py-2 text-xs text-gray-200">
@@ -1058,7 +1106,7 @@
               </div>
             </div>
 
-            <div class="bg-black/40 border border-white/[0.06] p-4 rounded-xl space-y-3">
+            <div class="bg-black/40 border border-white/[0.06] p-3.5 sm:p-4 rounded-xl space-y-3">
               <h3 class="text-xs font-bold text-indigo-300 uppercase tracking-wider">Chrome Engine Options</h3>
               <div>
                 <label class="text-xs text-gray-300 block mb-1">Chrome Executable Path</label>
@@ -1074,7 +1122,7 @@
               </div>
             </div>
 
-            <div class="bg-black/40 border border-white/[0.06] p-4 rounded-xl space-y-3">
+            <div class="bg-black/40 border border-white/[0.06] p-3.5 sm:p-4 rounded-xl space-y-3">
               <div class="flex items-center justify-between">
                 <h3 class="text-xs font-bold text-indigo-300 uppercase tracking-wider">Dynamic Spintax Variations</h3>
                 <div class="flex items-center space-x-2">
@@ -1092,7 +1140,7 @@
               </div>
             </div>
 
-            <button type="submit" class="btn-primary-action px-6 py-2.5 rounded-xl text-xs font-bold">
+            <button type="submit" class="btn-primary-action px-6 py-2.5 rounded-xl text-xs font-bold w-full sm:w-auto">
               Save Configuration
             </button>
           </form>
@@ -1107,11 +1155,11 @@
   <!-- ========================================================================= -->
 
   <!-- LIVE EXECUTION PROGRESS MODAL -->
-  <div id="live-exec-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-    <div class="software-card max-w-xl w-full p-6 shadow-2xl space-y-5 border border-indigo-500/30">
-      <div class="flex items-center justify-between border-b border-white/[0.06] pb-4">
+  <div id="live-exec-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-3 sm:p-4">
+    <div class="software-card max-w-xl w-full p-4 sm:p-6 shadow-2xl space-y-4 sm:space-y-5 border border-indigo-500/30 max-h-[92vh] overflow-y-auto">
+      <div class="flex items-center justify-between border-b border-white/[0.06] pb-3 sm:pb-4">
         <div class="flex items-center space-x-3">
-          <div class="w-8 h-8 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center font-bold">
+          <div class="w-8 h-8 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center font-bold shrink-0">
             <i data-lucide="loader-2" class="w-4 h-4 animate-spin" id="exec-spinner"></i>
           </div>
           <div>
@@ -1146,7 +1194,7 @@
       </div>
 
       <!-- Live Terminal Output -->
-      <div id="exec-terminal-logs" class="bg-black/90 border border-white/[0.08] rounded-xl p-3 h-40 font-mono-code text-[11px] text-gray-300 overflow-y-auto space-y-1"></div>
+      <div id="exec-terminal-logs" class="bg-black/90 border border-white/[0.08] rounded-xl p-3 h-36 sm:h-40 font-mono-code text-[11px] text-gray-300 overflow-y-auto space-y-1"></div>
 
       <div class="flex items-center justify-between pt-2">
         <button id="btn-stop-execution" onclick="stopExecution()" class="bg-red-500/20 hover:bg-red-500/30 text-red-300 border border-red-500/30 px-3.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition">
@@ -1160,8 +1208,8 @@
   </div>
 
   <!-- MODAL: ADD / EDIT BLOG POST & VIDEO -->
-  <div id="post-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-    <div class="software-card max-w-xl w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+  <div id="post-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-3 sm:p-4">
+    <div class="software-card max-w-xl w-full p-4 sm:p-6 shadow-2xl space-y-4 max-h-[92vh] overflow-y-auto">
       <div class="flex items-center justify-between border-b border-white/[0.06] pb-3">
         <h3 class="font-bold text-sm text-white" id="post-modal-title">Add Blog Article / Video</h3>
         <button onclick="closePostModal()" class="text-gray-400 hover:text-white"><i data-lucide="x" class="w-4 h-4"></i></button>
@@ -1196,7 +1244,7 @@
         </div>
 
         <!-- Image Upload -->
-        <div class="grid grid-cols-2 gap-3">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label class="text-xs text-gray-300 block mb-1">Image URL (Optional)</label>
             <input type="url" id="post-image-url" placeholder="https://..." class="w-full bg-black/50 border border-white/[0.08] rounded-xl px-3 py-2 text-xs text-gray-200">
@@ -1221,8 +1269,8 @@
   </div>
 
   <!-- MODAL: ADD / EDIT GROUP -->
-  <div id="group-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-    <div class="software-card max-w-md w-full p-6 shadow-2xl space-y-4">
+  <div id="group-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-3 sm:p-4">
+    <div class="software-card max-w-md w-full p-4 sm:p-6 shadow-2xl space-y-4 max-h-[92vh] overflow-y-auto">
       <div class="flex items-center justify-between border-b border-white/[0.06] pb-3">
         <h3 class="font-bold text-sm text-white" id="group-modal-title">Add Facebook Group</h3>
         <button onclick="closeGroupModal()" class="text-gray-400 hover:text-white"><i data-lucide="x" class="w-4 h-4"></i></button>
@@ -1251,14 +1299,14 @@
   </div>
 
   <!-- MODAL: BULK IMPORT GROUPS -->
-  <div id="bulk-group-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-    <div class="software-card max-w-lg w-full p-6 shadow-2xl space-y-4">
+  <div id="bulk-group-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-3 sm:p-4">
+    <div class="software-card max-w-lg w-full p-4 sm:p-6 shadow-2xl space-y-4 max-h-[92vh] overflow-y-auto">
       <div class="flex items-center justify-between border-b border-white/[0.06] pb-3">
         <h3 class="font-bold text-sm text-white">Bulk Import Facebook Groups</h3>
         <button onclick="closeBulkGroupModal()" class="text-gray-400 hover:text-white"><i data-lucide="x" class="w-4 h-4"></i></button>
       </div>
       <p class="text-xs text-gray-400">Paste one Facebook group URL per line (or format: <code>Group Name, URL</code>).</p>
-      <textarea id="bulk-group-text" rows="7" placeholder="https://www.facebook.com/groups/group1
+      <textarea id="bulk-group-text" rows="6" placeholder="https://www.facebook.com/groups/group1
 https://www.facebook.com/groups/group2" class="w-full bg-black/50 border border-white/[0.08] rounded-xl p-3 text-xs text-gray-200 font-mono-code"></textarea>
       <div>
         <label class="text-xs text-gray-300 block mb-1">Tag for All</label>
@@ -1272,16 +1320,16 @@ https://www.facebook.com/groups/group2" class="w-full bg-black/50 border border-
   </div>
 
   <!-- MODAL: RSS FEEDS -->
-  <div id="rss-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-    <div class="software-card max-w-xl w-full p-6 shadow-2xl space-y-4">
+  <div id="rss-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-3 sm:p-4">
+    <div class="software-card max-w-xl w-full p-4 sm:p-6 shadow-2xl space-y-4 max-h-[92vh] overflow-y-auto">
       <div class="flex items-center justify-between border-b border-white/[0.06] pb-3">
         <h3 class="font-bold text-sm text-white">RSS & Blog Feed Ingestion</h3>
         <button onclick="closeRssModal()" class="text-gray-400 hover:text-white"><i data-lucide="x" class="w-4 h-4"></i></button>
       </div>
 
-      <form id="rss-form" onsubmit="handleSaveRss(event)" class="bg-black/40 p-4 rounded-xl border border-white/[0.06] space-y-3">
+      <form id="rss-form" onsubmit="handleSaveRss(event)" class="bg-black/40 p-3 sm:p-4 rounded-xl border border-white/[0.06] space-y-3">
         <span class="text-xs font-bold text-gray-300 uppercase tracking-wider block">Add Blog RSS Feed</span>
-        <div class="grid grid-cols-2 gap-3">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label class="text-[11px] text-gray-400 block mb-1">Feed Name</label>
             <input type="text" id="rss-name" required placeholder="Tech Blog" class="w-full bg-black/60 border border-white/[0.08] rounded-lg px-2.5 py-1.5 text-xs text-gray-200">
@@ -1295,12 +1343,12 @@ https://www.facebook.com/groups/group2" class="w-full bg-black/50 border border-
           <label class="text-[11px] text-gray-400 block mb-1">Feed URL</label>
           <input type="url" id="rss-url" required placeholder="https://example.com/feed/" class="w-full bg-black/60 border border-white/[0.08] rounded-lg px-2.5 py-1.5 text-xs text-gray-200">
         </div>
-        <div class="flex items-center justify-between pt-1">
+        <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 pt-1">
           <div class="flex items-center space-x-2">
             <input type="checkbox" id="rss-autopost" class="w-4 h-4 accent-indigo-600 rounded">
             <label for="rss-autopost" class="text-xs text-gray-300">Auto-post newly found articles</label>
           </div>
-          <button type="submit" class="btn-primary-action px-4 py-1.5 rounded-lg text-xs font-semibold">Add Feed</button>
+          <button type="submit" class="btn-primary-action px-4 py-1.5 rounded-lg text-xs font-semibold w-full sm:w-auto">Add Feed</button>
         </div>
       </form>
 
@@ -1312,8 +1360,8 @@ https://www.facebook.com/groups/group2" class="w-full bg-black/50 border border-
   </div>
 
   <!-- MODAL: NEW CAMPAIGN -->
-  <div id="campaign-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-    <div class="software-card max-w-md w-full p-6 shadow-2xl space-y-4">
+  <div id="campaign-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-3 sm:p-4">
+    <div class="software-card max-w-md w-full p-4 sm:p-6 shadow-2xl space-y-4 max-h-[92vh] overflow-y-auto">
       <div class="flex items-center justify-between border-b border-white/[0.06] pb-3">
         <h3 class="font-bold text-sm text-white" id="campaign-modal-title">Create Auto-Pilot Campaign</h3>
         <button onclick="closeCampaignModal()" class="text-gray-400 hover:text-white"><i data-lucide="x" class="w-4 h-4"></i></button>
@@ -1325,7 +1373,7 @@ https://www.facebook.com/groups/group2" class="w-full bg-black/50 border border-
           <label class="text-xs text-gray-300 block mb-1">Campaign Name *</label>
           <input type="text" id="campaign-name" required placeholder="Daily Viral Blog Blaster" class="w-full bg-black/50 border border-white/[0.08] rounded-xl px-3 py-2 text-xs text-gray-200">
         </div>
-        <div class="grid grid-cols-2 gap-3">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label class="text-xs text-gray-300 block mb-1">Post Selection</label>
             <select id="campaign-source" class="w-full bg-black/50 border border-white/[0.08] rounded-xl px-3 py-2 text-xs text-gray-200">
@@ -1339,7 +1387,7 @@ https://www.facebook.com/groups/group2" class="w-full bg-black/50 border border-
             <input type="number" id="campaign-interval" value="120" min="15" class="w-full bg-black/50 border border-white/[0.08] rounded-xl px-3 py-2 text-xs text-gray-200">
           </div>
         </div>
-        <div class="grid grid-cols-2 gap-3">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label class="text-xs text-gray-300 block mb-1">Repeat Cycle</label>
             <input type="number" id="campaign-repeat" value="1" min="1" max="10" class="w-full bg-black/50 border border-white/[0.08] rounded-xl px-3 py-2 text-xs text-gray-200">
@@ -1358,11 +1406,11 @@ https://www.facebook.com/groups/group2" class="w-full bg-black/50 border border-
   </div>
 
   <!-- MODAL: CONNECT FACEBOOK (DESKTOP & CLOUD AUTO) -->
-  <div id="fb-connect-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-    <div class="software-card max-w-lg w-full p-6 shadow-2xl space-y-4">
+  <div id="fb-connect-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-3 sm:p-4">
+    <div class="software-card max-w-lg w-full p-4 sm:p-6 shadow-2xl space-y-4 max-h-[92vh] overflow-y-auto">
       <div class="flex items-center justify-between border-b border-white/[0.06] pb-3">
         <div class="flex items-center space-x-2.5">
-          <div class="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white font-bold text-xs">FB</div>
+          <div class="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white font-bold text-xs shrink-0">FB</div>
           <h3 class="font-bold text-sm text-white">Connect Facebook Account</h3>
         </div>
         <button onclick="closeLoginModal()" class="text-gray-400 hover:text-white"><i data-lucide="x" class="w-4 h-4"></i></button>
@@ -1370,10 +1418,10 @@ https://www.facebook.com/groups/group2" class="w-full bg-black/50 border border-
 
       <!-- Mode Switcher -->
       <div class="flex rounded-lg bg-black/60 p-1 border border-white/[0.06] text-xs">
-        <button type="button" onclick="switchFbAuthMode('cloud')" id="btn-auth-mode-cloud" class="flex-1 py-1.5 font-semibold rounded-md bg-indigo-600 text-white transition">
-          Cloud Auto (Vercel & 24/7)
+        <button type="button" onclick="switchFbAuthMode('cloud')" id="btn-auth-mode-cloud" class="flex-1 py-1.5 font-semibold rounded-md bg-indigo-600 text-white transition text-center">
+          Cloud Auto (Vercel)
         </button>
-        <button type="button" onclick="switchFbAuthMode('desktop')" id="btn-auth-mode-desktop" class="flex-1 py-1.5 font-semibold rounded-md text-gray-400 hover:text-white transition">
+        <button type="button" onclick="switchFbAuthMode('desktop')" id="btn-auth-mode-desktop" class="flex-1 py-1.5 font-semibold rounded-md text-gray-400 hover:text-white transition text-center">
           Desktop Chrome Window
         </button>
       </div>
@@ -1426,11 +1474,11 @@ https://www.facebook.com/groups/group2" class="w-full bg-black/50 border border-
   </div>
 
   <!-- MODAL: 1-CLICK MANUAL POSTING ASSISTANT (Requirement 11) -->
-  <div id="manual-poster-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-    <div class="software-card max-w-xl w-full p-6 shadow-2xl space-y-4">
+  <div id="manual-poster-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-3 sm:p-4">
+    <div class="software-card max-w-xl w-full p-4 sm:p-6 shadow-2xl space-y-4 max-h-[92vh] overflow-y-auto">
       <div class="flex items-center justify-between border-b border-white/[0.06] pb-3">
         <div class="flex items-center space-x-2.5">
-          <div class="w-8 h-8 rounded-lg bg-emerald-600/20 text-emerald-400 flex items-center justify-center font-bold">
+          <div class="w-8 h-8 rounded-lg bg-emerald-600/20 text-emerald-400 flex items-center justify-center font-bold shrink-0">
             <i data-lucide="clipboard-check" class="w-4 h-4"></i>
           </div>
           <div>
@@ -1447,7 +1495,7 @@ https://www.facebook.com/groups/group2" class="w-full bg-black/50 border border-
           <span class="text-[10px] font-bold uppercase tracking-wider text-gray-400">Target Group:</span>
           <span id="manual-group-country" class="text-[10px] bg-white/[0.06] text-gray-300 px-2 py-0.5 rounded-full">United States</span>
         </div>
-        <div class="text-sm font-bold text-white flex items-center justify-between">
+        <div class="text-sm font-bold text-white flex flex-col sm:flex-row sm:items-center justify-between gap-1">
           <span id="manual-group-name">Facebook Group</span>
           <a id="manual-group-link" href="#" target="_blank" class="text-xs text-indigo-400 hover:underline flex items-center gap-1">
             <span>Direct Link</span> <i data-lucide="external-link" class="w-3 h-3"></i>
@@ -1459,10 +1507,10 @@ https://www.facebook.com/groups/group2" class="w-full bg-black/50 border border-
       <div class="space-y-1.5">
         <div class="flex items-center justify-between text-xs">
           <span class="font-semibold text-gray-300 flex items-center gap-1.5">
-            <span class="w-4 h-4 rounded-full bg-indigo-600 text-white flex items-center justify-center text-[10px]">1</span>
-            Prepared Post Caption & Unique Tracking Link:
+            <span class="w-4 h-4 rounded-full bg-indigo-600 text-white flex items-center justify-center text-[10px] shrink-0">1</span>
+            Prepared Caption & Tracking Link:
           </span>
-          <button onclick="copyManualPostCaption()" class="text-xs text-indigo-400 hover:text-indigo-300 font-bold flex items-center gap-1 bg-indigo-500/10 px-2 py-1 rounded">
+          <button onclick="copyManualPostCaption()" class="text-xs text-indigo-400 hover:text-indigo-300 font-bold flex items-center gap-1 bg-indigo-500/10 px-2 py-1 rounded shrink-0">
             <i data-lucide="copy" class="w-3 h-3"></i> Copy Caption
           </button>
         </div>
@@ -1470,31 +1518,31 @@ https://www.facebook.com/groups/group2" class="w-full bg-black/50 border border-
       </div>
 
       <!-- Step 2: Open Group & Publish -->
-      <div class="p-3 bg-white/[0.02] border border-white/[0.06] rounded-xl flex items-center justify-between text-xs">
+      <div class="p-3 bg-white/[0.02] border border-white/[0.06] rounded-xl flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 text-xs">
         <span class="text-gray-300">Step 2: Open group page in new tab & paste</span>
-        <button onclick="openManualCurrentGroupTab()" class="btn-primary-action px-4 py-2 rounded-lg font-bold flex items-center gap-1.5">
+        <button onclick="openManualCurrentGroupTab()" class="btn-primary-action px-4 py-2 rounded-lg font-bold flex items-center justify-center gap-1.5 shrink-0">
           <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
           <span>Open Group in Facebook</span>
         </button>
       </div>
 
       <!-- Action Footer -->
-      <div class="flex items-center justify-between pt-3 border-t border-white/[0.06]">
-        <button onclick="skipManualPostItem()" class="text-xs text-gray-400 hover:text-white px-3 py-1.5 rounded">Skip This Group</button>
-        <button onclick="markManualPostCompleted()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs px-5 py-2.5 rounded-xl flex items-center gap-1.5 shadow-lg shadow-emerald-600/30 transition">
+      <div class="flex items-center justify-between pt-3 border-t border-white/[0.06] gap-2">
+        <button onclick="skipManualPostItem()" class="text-xs text-gray-400 hover:text-white px-3 py-1.5 rounded">Skip Group</button>
+        <button onclick="markManualPostCompleted()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs px-4 sm:px-5 py-2.5 rounded-xl flex items-center gap-1.5 shadow-lg shadow-emerald-600/30 transition shrink-0">
           <i data-lucide="check" class="w-4 h-4"></i>
-          <span>Mark as Published & Next</span>
+          <span>Mark Published & Next</span>
         </button>
       </div>
     </div>
   </div>
 
   <!-- MODAL: GA4 SETUP (Requirement 13) -->
-  <div id="ga4-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-    <div class="software-card max-w-md w-full p-6 shadow-2xl space-y-4">
+  <div id="ga4-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-3 sm:p-4">
+    <div class="software-card max-w-md w-full p-4 sm:p-6 shadow-2xl space-y-4 max-h-[92vh] overflow-y-auto">
       <div class="flex items-center justify-between border-b border-white/[0.06] pb-3">
         <div class="flex items-center space-x-2">
-          <div class="w-7 h-7 rounded-lg bg-cyan-500/20 text-cyan-400 flex items-center justify-center font-bold">
+          <div class="w-7 h-7 rounded-lg bg-cyan-500/20 text-cyan-400 flex items-center justify-center font-bold shrink-0">
             <i data-lucide="bar-chart-2" class="w-4 h-4"></i>
           </div>
           <h3 class="font-bold text-sm text-white">Google Analytics 4 (GA4) Setup</h3>
@@ -1519,8 +1567,8 @@ https://www.facebook.com/groups/group2" class="w-full bg-black/50 border border-
         Find this in GA4: Admin &rarr; Data Streams &rarr; Web &rarr; Measurement Protocol API Secrets.
       </div>
 
-      <div class="flex items-center justify-between pt-2 border-t border-white/[0.06]">
-        <button onclick="testGa4Connection()" class="bg-white/[0.06] hover:bg-white/[0.1] text-cyan-300 border border-cyan-500/30 px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-1">
+      <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 pt-2 border-t border-white/[0.06]">
+        <button onclick="testGa4Connection()" class="bg-white/[0.06] hover:bg-white/[0.1] text-cyan-300 border border-cyan-500/30 px-3 py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1">
           <i data-lucide="activity" class="w-3.5 h-3.5"></i>
           <span>Send Test GA4 Event</span>
         </button>

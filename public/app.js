@@ -39,6 +39,7 @@ let state = {
 
 // --- Initialization ---
 document.addEventListener('DOMContentLoaded', () => {
+  initTheme();
   if (window.lucide) lucide.createIcons();
   initEventSource();
   loadAllData();
@@ -53,6 +54,14 @@ document.addEventListener('DOMContentLoaded', () => {
     fetchStats();
     loadTrafficAnalytics();
   }, 10000);
+
+  // Global keyboard shortcuts (Escape dismisses mobile menu & open modals)
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      if (window.innerWidth < 1024) toggleSidebar(false);
+      closeAllOpenModals();
+    }
+  });
 });
 
 // --- Server-Sent Events (SSE) for Real-Time Streaming ---
@@ -332,6 +341,118 @@ const TAB_TITLES = {
   settings: 'Anti-Ban & Engine Settings'
 };
 
+// --- Responsive Mobile Sidebar Drawer ---
+function toggleSidebar(open) {
+  const sidebar = document.getElementById('sidebar');
+  const overlay = document.getElementById('sidebar-overlay');
+  if (!sidebar) return;
+
+  const isClosed = sidebar.classList.contains('-translate-x-full');
+  const shouldOpen = open !== undefined ? open : isClosed;
+
+  if (shouldOpen) {
+    sidebar.classList.remove('-translate-x-full');
+    sidebar.classList.add('translate-x-0');
+    if (overlay) overlay.classList.remove('hidden');
+  } else {
+    sidebar.classList.add('-translate-x-full');
+    sidebar.classList.remove('translate-x-0');
+    if (overlay) overlay.classList.add('hidden');
+  }
+}
+
+// --- Light & Dark Theme Controller ---
+function initTheme() {
+  let theme = 'dark';
+  try {
+    const saved = localStorage.getItem('fb_autoblog_theme');
+    if (saved === 'light' || saved === 'dark') {
+      theme = saved;
+    }
+  } catch (e) {}
+  setTheme(theme, false);
+}
+
+function setTheme(theme, save = true) {
+  const html = document.documentElement;
+  const isLight = theme === 'light';
+
+  if (isLight) {
+    html.classList.remove('dark');
+    html.classList.add('light');
+  } else {
+    html.classList.remove('light');
+    html.classList.add('dark');
+  }
+
+  // Update Header Theme Toggle Button
+  const themeIcon = document.getElementById('theme-toggle-icon');
+  const themeText = document.getElementById('theme-toggle-text');
+  const themeBtn = document.getElementById('theme-toggle-btn');
+
+  if (themeIcon) {
+    themeIcon.setAttribute('data-lucide', isLight ? 'moon' : 'sun');
+    if (isLight) {
+      themeIcon.classList.remove('text-amber-400');
+      themeIcon.classList.add('text-indigo-400');
+    } else {
+      themeIcon.classList.remove('text-indigo-400');
+      themeIcon.classList.add('text-amber-400');
+    }
+  }
+  if (themeText) {
+    themeText.textContent = isLight ? 'Dark' : 'Light';
+  }
+  if (themeBtn) {
+    themeBtn.setAttribute('title', isLight ? 'Switch to Dark Mode' : 'Switch to Light Mode');
+  }
+
+  // Update Sidebar Bottom Theme Pill
+  const sidebarThemeIcon = document.getElementById('sidebar-theme-icon');
+  const sidebarThemeText = document.getElementById('sidebar-theme-text');
+  if (sidebarThemeIcon) {
+    sidebarThemeIcon.setAttribute('data-lucide', isLight ? 'moon' : 'sun');
+    if (isLight) {
+      sidebarThemeIcon.classList.remove('text-amber-400');
+      sidebarThemeIcon.classList.add('text-indigo-400');
+    } else {
+      sidebarThemeIcon.classList.remove('text-indigo-400');
+      sidebarThemeIcon.classList.add('text-amber-400');
+    }
+  }
+  if (sidebarThemeText) {
+    sidebarThemeText.textContent = isLight ? 'Light Mode' : 'Dark Mode';
+  }
+
+  if (save) {
+    try {
+      localStorage.setItem('fb_autoblog_theme', theme);
+      if (typeof showToast === 'function') {
+        showToast(isLight ? 'Switched to Light Theme' : 'Switched to Dark Theme', 'success');
+      }
+    } catch (e) {}
+  }
+
+  if (window.lucide) lucide.createIcons();
+}
+
+function toggleTheme() {
+  const isCurrentlyLight = document.documentElement.classList.contains('light');
+  setTheme(isCurrentlyLight ? 'dark' : 'light', true);
+}
+
+// Close all open modals helper for Escape key
+function closeAllOpenModals() {
+  if (typeof closePostModal === 'function') closePostModal();
+  if (typeof closeGroupModal === 'function') closeGroupModal();
+  if (typeof closeBulkGroupModal === 'function') closeBulkGroupModal();
+  if (typeof closeRssModal === 'function') closeRssModal();
+  if (typeof closeCampaignModal === 'function') closeCampaignModal();
+  if (typeof closeLoginModal === 'function') closeLoginModal();
+  if (typeof closeManualPosterModal === 'function') closeManualPosterModal();
+  if (typeof closeGa4Modal === 'function') closeGa4Modal();
+}
+
 function switchTab(tabId) {
   state.activeTab = tabId;
 
@@ -345,6 +466,11 @@ function switchTab(tabId) {
   if (activeBtn) activeBtn.classList.add('active');
   if (activeSection) activeSection.classList.remove('hidden');
   if (breadcrumb && TAB_TITLES[tabId]) breadcrumb.textContent = TAB_TITLES[tabId];
+
+  // Auto close mobile drawer on tab navigation
+  if (window.innerWidth < 1024) {
+    toggleSidebar(false);
+  }
 
   if (window.lucide) lucide.createIcons();
 }
