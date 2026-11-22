@@ -54,14 +54,27 @@ npm start
 
 ---
 
-## 🌐 Deploy to Vercel
+---
 
-This repository is pre-configured with `vercel.json` and `api/index.js` for instant deployment to Vercel:
+## 🌐 Deploy to Vercel with SQL Database
 
-1. Import this repository into [Vercel](https://vercel.com/bytely-team/)
-2. Framework Preset: **Other** (Root directory: `./`)
-3. Click **Deploy**!
-4. Your luxury dashboard web UI and API endpoints will be live immediately.
+This repository is pre-configured with `vercel.json`, `api/index.js`, and `server/sqlDatabase.js` for instant deployment to Vercel:
+
+### Step 1: Deploy Project
+1. Go to [Vercel](https://vercel.com/bytely-team/)
+2. Click **Add New Project** -> **Import Git Repository**
+3. Select `ahmadalibyteforceITSolution/blogposting`
+4. Framework Preset: **Other** (Root directory: `./`)
+5. Click **Deploy**!
+
+### Step 2: Attach Vercel Postgres SQL Database (1-Click)
+1. On your Vercel project dashboard, navigate to the **Storage** tab.
+2. Click **Create Database** -> Select **Postgres** (Powered by Neon).
+3. Click **Connect Project**.
+   - Vercel automatically creates and binds `POSTGRES_URL` to your production environment.
+4. Redeploy or restart the project:
+   - The software will automatically detect PostgreSQL, create all relational tables (`posts`, `groups`, `rss_sources`, `campaigns`, `history`, `settings`), and run with persistent SQL storage!
+5. (Optional) You can also inspect or customize tables using the provided [`schema.sql`](schema.sql) file.
 
 ---
 

@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const { DB_FILE, DEFAULT_CHROME_PATH } = require('./config');
+const sqlDb = require('./sqlDatabase');
 
 const defaultData = {
   posts: [
@@ -11,6 +12,7 @@ const defaultData = {
       excerpt: 'Learn the battle-tested techniques to multiply organic search and social media visitors to your articles.',
       content: 'Learn the battle-tested techniques to multiply organic search and social media visitors to your articles. Implementing strategic content syndication, social group engagement, and keyword clusters helps you scale fast.',
       imageUrl: '',
+      videoUrl: '',
       tags: ['Blogging', 'Marketing', 'Traffic'],
       timesPosted: 0,
       lastPostedAt: null,
@@ -23,6 +25,7 @@ const defaultData = {
       excerpt: 'A complete blueprint for smart scheduling, randomized intervals, and spintax text variations.',
       content: 'A complete blueprint for smart scheduling, randomized intervals, and spintax text variations. Keep your social accounts healthy while growing multiple channels simultaneously.',
       imageUrl: '',
+      videoUrl: '',
       tags: ['Automation', 'SocialMedia', 'Growth'],
       timesPosted: 0,
       lastPostedAt: null,
@@ -94,6 +97,38 @@ class Database {
   constructor() {
     this.filePath = DB_FILE;
     this.data = this.load();
+
+    // If connected to PostgreSQL (e.g. on Vercel), sync from SQL
+    if (sqlDb.hasPostgres()) {
+      this.syncFromSql().catch(err => {
+        console.warn('Initial SQL sync warning:', err.message);
+      });
+    }
+  }
+
+  async syncFromSql() {
+    if (!sqlDb.hasPostgres()) return;
+    try {
+      const [posts, groups, rssSources, campaigns, history, settings] = await Promise.all([
+        sqlDb.get('posts'),
+        sqlDb.get('groups'),
+        sqlDb.get('rss_sources'),
+        sqlDb.get('campaigns'),
+        sqlDb.get('history'),
+        sqlDb.getSettings()
+      ]);
+
+      if (posts.length > 0) this.data.posts = posts;
+      if (groups.length > 0) this.data.groups = groups;
+      if (rssSources.length > 0) this.data.rss_sources = rssSources;
+      if (campaigns.length > 0) this.data.campaigns = campaigns;
+      if (history.length > 0) this.data.history = history;
+      if (settings) this.data.settings = { ...this.data.settings, ...settings };
+
+      console.log(`🐘 SQL Sync Complete: Loaded ${this.data.posts.length} posts, ${this.data.groups.length} groups from PostgreSQL.`);
+    } catch (err) {
+      console.error('SQL Sync error:', err.message);
+    }
   }
 
   load() {
@@ -108,7 +143,7 @@ class Database {
         };
       }
     } catch (err) {
-      console.error('Error loading db.json, initializing fresh default database:', err);
+      console.error('Error loading local DB, initializing default state:', err.message);
     }
     this.save(defaultData);
     return JSON.parse(JSON.stringify(defaultData));
@@ -118,7 +153,7 @@ class Database {
     try {
       fs.writeFileSync(this.filePath, JSON.stringify(data, null, 2), 'utf-8');
     } catch (err) {
-      console.error('Failed to save db.json:', err);
+      // In serverless read-only environments, local disk writes are ignored safely
     }
   }
 
@@ -133,6 +168,9 @@ class Database {
   updateSettings(newSettings) {
     this.data.settings = { ...this.data.settings, ...newSettings };
     this.save();
+    if (sqlDb.hasPostgres()) {
+      sqlDb.updateSettings(this.data.settings).catch(() => {});
+    }
     return this.data.settings;
   }
 
@@ -142,6 +180,12 @@ class Database {
     }
     this.data[table].unshift(item);
     this.save();
+
+    if (sqlDb.hasPostgres()) {
+      sqlDb.addItem(table, item).catch(err => {
+        console.error(`SQL insert error on ${table}:`, err.message);
+      });
+    }
     return item;
   }
 
@@ -151,6 +195,12 @@ class Database {
     if (index !== -1) {
       this.data[table][index] = { ...list[index], ...updates };
       this.save();
+
+      if (sqlDb.hasPostgres()) {
+        sqlDb.updateItem(table, id, updates).catch(err => {
+          console.error(`SQL update error on ${table}:`, err.message);
+        });
+      }
       return this.data[table][index];
     }
     return null;
@@ -160,6 +210,12 @@ class Database {
     const list = this.data[table] || [];
     this.data[table] = list.filter(item => item.id !== id);
     this.save();
+
+    if (sqlDb.hasPostgres()) {
+      sqlDb.deleteItem(table, id).catch(err => {
+        console.error(`SQL delete error on ${table}:`, err.message);
+      });
+    }
     return true;
   }
 
@@ -175,17 +231,23 @@ class Database {
     };
     if (!this.data.history) this.data.history = [];
     this.data.history.unshift(logItem);
-    // Keep max 1000 logs in history
     if (this.data.history.length > 1000) {
       this.data.history = this.data.history.slice(0, 1000);
     }
     this.save();
+
+    if (sqlDb.hasPostgres()) {
+      sqlDb.addLog(entry).catch(() => {});
+    }
     return logItem;
   }
 
   clearHistory() {
     this.data.history = [];
     this.save();
+    if (sqlDb.hasPostgres()) {
+      sqlDb.clearHistory().catch(() => {});
+    }
     return true;
   }
 }
