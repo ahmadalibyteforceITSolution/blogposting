@@ -280,7 +280,7 @@
           <form onsubmit="handleFinderSearch(event)" class="space-y-4">
             <div class="grid grid-cols-1 lg:grid-cols-12 gap-3">
               <!-- Keyword Search Input -->
-              <div class="lg:col-span-6 relative">
+              <div class="lg:col-span-5 relative">
                 <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-500">
                   <i data-lucide="search" class="w-4 h-4"></i>
                 </div>
@@ -288,7 +288,7 @@
               </div>
 
               <!-- Country Selector Dropdown -->
-              <div class="lg:col-span-4 relative">
+              <div class="lg:col-span-3 relative">
                 <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-500">
                   <i data-lucide="globe" class="w-4 h-4"></i>
                 </div>
@@ -310,10 +310,14 @@
               </div>
 
               <!-- Action Buttons -->
-              <div class="lg:col-span-2 flex gap-2">
+              <div class="lg:col-span-4 flex gap-2">
                 <button type="submit" class="btn-primary-action flex-1 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5">
                   <i data-lucide="search" class="w-3.5 h-3.5"></i>
                   <span>Discover</span>
+                </button>
+                <button type="button" onclick="openLiveFacebookSearch()" class="bg-blue-600/30 hover:bg-blue-600/50 text-blue-200 border border-blue-500/40 px-3 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition" title="Search live Facebook groups directly on facebook.com with Join buttons">
+                  <i data-lucide="external-link" class="w-3.5 h-3.5 text-blue-400"></i>
+                  <span>Live on FB</span>
                 </button>
                 <button type="button" onclick="resetFinderFilters()" class="bg-white/[0.06] hover:bg-white/[0.1] text-gray-300 border border-white/[0.08] px-3 py-2.5 rounded-xl text-xs font-medium" title="Reset Filters">
                   <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>

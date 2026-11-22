@@ -298,8 +298,8 @@ const GLOBAL_GROUPS_DATABASE = [
   // --- Australia (AU) ---
   {
     id: 'grp-au-001',
-    name: 'Canva Design & Social Media Content Australia',
-    url: 'https://www.facebook.com/groups/canva',
+    name: 'WordPress Developer & Web Designer Alliance',
+    url: 'https://www.facebook.com/groups/WordpressDeveloperWebDesigner',
     country: 'Australia',
     countryCode: 'AU',
     niche: 'Digital Marketing',
@@ -513,8 +513,8 @@ const GLOBAL_GROUPS_DATABASE = [
   // --- Pakistan (PK) ---
   {
     id: 'grp-pk-001',
-    name: 'Freelance Writers & Bloggers Hub Pakistan',
-    url: 'https://www.facebook.com/groups/freelancewriters',
+    name: 'Blogging For New Bloggers & SEO Hub Pakistan',
+    url: 'https://www.facebook.com/groups/BloggingForNewBloggers',
     country: 'Pakistan',
     countryCode: 'PK',
     niche: 'Blogging & SEO',
@@ -559,8 +559,8 @@ const GLOBAL_GROUPS_DATABASE = [
   },
   {
     id: 'grp-pk-003',
-    name: 'Affiliate Marketing Ninjas Pakistan',
-    url: 'https://www.facebook.com/groups/affiliatemarketingninjas',
+    name: 'Affiliate Marketing Ninjas (AMNinjas)',
+    url: 'https://www.facebook.com/groups/amninjas',
     country: 'Pakistan',
     countryCode: 'PK',
     niche: 'Affiliate Marketing',
@@ -776,8 +776,8 @@ const GLOBAL_GROUPS_DATABASE = [
   },
   {
     id: 'grp-ww-003',
-    name: 'Growth Hacking & Digital Virality Worldwide',
-    url: 'https://www.facebook.com/groups/growthhacking',
+    name: 'WordPress Themes & Plugins Mastermind',
+    url: 'https://www.facebook.com/groups/WordPressThemesPlugins',
     country: 'Worldwide',
     countryCode: 'ALL',
     niche: 'Crypto & Web3',
@@ -799,8 +799,8 @@ const GLOBAL_GROUPS_DATABASE = [
   },
   {
     id: 'grp-ww-004',
-    name: 'SaaS Growth Hacks & Traffic Generation',
-    url: 'https://www.facebook.com/groups/saasgrowthhacks',
+    name: 'SaaS Growth Hacking & Onboarding Mastermind',
+    url: 'https://www.facebook.com/groups/SaaSgrowthhacking',
     country: 'Worldwide',
     countryCode: 'ALL',
     niche: 'Health & Fitness',

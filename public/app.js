@@ -1588,6 +1588,16 @@ function resetFinderFilters() {
   searchDiscoveredGroups();
 }
 
+function openLiveFacebookSearch() {
+  const kwInput = document.getElementById('finder-keyword');
+  const countrySelect = document.getElementById('finder-country');
+  const kw = (kwInput && kwInput.value.trim()) || '';
+  const country = (countrySelect && countrySelect.value !== 'ALL' && countrySelect.options[countrySelect.selectedIndex].text.replace(/[^\w\s]/gi, '').trim()) || '';
+  const query = [kw || 'Blogging SEO Traffic', country].filter(Boolean).join(' ');
+  const url = `https://www.facebook.com/groups/search/groups/?q=${encodeURIComponent(query)}`;
+  window.open(url, '_blank');
+}
+
 function renderFinderResults() {
   const container = document.getElementById('finder-results-grid');
   const countEl = document.getElementById('finder-result-count');
@@ -1623,6 +1633,7 @@ function renderFinderResults() {
     const flag = countryFlags[g.country] || '🌍';
     const isNoApproval = g.postApproval === 'NO_APPROVAL_REQUIRED';
     const isLinkAllowed = g.linkPermission === 'ALLOWED';
+    const fbSearchUrl = `https://www.facebook.com/groups/search/groups/?q=${encodeURIComponent(g.name)}`;
 
     return `
       <div class="software-card p-4 flex flex-col justify-between hover:border-white/[0.15] transition relative ${isSelected ? 'ring-1 ring-indigo-500 bg-indigo-950/20' : ''}">
@@ -1640,13 +1651,20 @@ function renderFinderResults() {
             </div>
           </div>
 
-          <!-- Group Title & Link -->
+          <!-- Group Title & Dual Links -->
           <div>
             <h4 class="font-bold text-sm text-gray-100 hover:text-white line-clamp-1">${escapeHtml(g.name)}</h4>
-            <a href="${g.url}" target="_blank" class="text-[11px] text-indigo-400 hover:underline flex items-center gap-1 font-mono mt-0.5 truncate max-w-xs">
-              <span class="truncate">${escapeHtml(g.url)}</span>
-              <i data-lucide="external-link" class="w-3 h-3 shrink-0"></i>
-            </a>
+            <div class="flex items-center flex-wrap gap-2 mt-1.5">
+              <a href="${g.url}" target="_blank" class="text-[11px] text-indigo-400 hover:underline flex items-center gap-1 font-mono truncate max-w-[130px]" title="Direct Group URL">
+                <i data-lucide="link" class="w-3 h-3 shrink-0"></i>
+                <span class="truncate">${escapeHtml(g.url.replace('https://www.facebook.com/groups/', 'fb/'))}</span>
+              </a>
+              <span class="text-gray-600 text-xs">•</span>
+              <a href="${fbSearchUrl}" target="_blank" class="text-[10px] font-bold text-blue-300 hover:text-white bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 px-2 py-0.5 rounded-full flex items-center gap-1 transition" title="Search live on Facebook with instant Join buttons">
+                <i data-lucide="search" class="w-2.5 h-2.5 text-blue-400"></i>
+                <span>Search FB (Join)</span>
+              </a>
+            </div>
           </div>
 
           <!-- Verification Badges (Strict Approval + Link Policy) -->
