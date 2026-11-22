@@ -47,8 +47,8 @@ const defaultData = {
   groups: [
     {
       id: 'demo-group-1',
-      name: 'Blogging & Digital Marketing Mastermind USA',
-      url: 'https://www.facebook.com/groups/bloggingmarketingusa',
+      name: 'SEO Signals Lab - SEO, Traffic & Affiliate Community',
+      url: 'https://www.facebook.com/groups/seosignalslab',
       type: 'group',
       country: 'United States',
       countryCode: 'US',
@@ -75,8 +75,8 @@ const defaultData = {
     },
     {
       id: 'demo-group-2',
-      name: 'Worldwide Bloggers, SEO Traffic & Content Syndication',
-      url: 'https://www.facebook.com/groups/worldwidebloggersseotraffic',
+      name: 'WPBeginner - WordPress & Blogging Mastermind',
+      url: 'https://www.facebook.com/groups/wpbeginner',
       type: 'group',
       country: 'Worldwide',
       countryCode: 'ALL',
