@@ -53,7 +53,7 @@
       }
     }
   </script>
-  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/styles.css?v=20261122_light_dark_v3">
 </head>
 <body class="bg-[#06080F] text-gray-200 h-screen w-screen overflow-hidden flex flex-row antialiased select-none">
 
@@ -260,7 +260,7 @@
         </button>
         <span class="text-gray-500 hidden sm:inline">Suite</span>
         <span class="text-gray-600 hidden sm:inline">/</span>
-        <span id="breadcrumb-title" class="text-gray-200 font-semibold truncate text-xs sm:text-sm">1-Click Multi-Poster Studio</span>
+        <span id="breadcrumb-title" class="text-gray-200 font-semibold truncate text-xs sm:text-sm">Worldwide Facebook Group Finder</span>
       </div>
 
       <!-- Engine Live Activity Pill & Global Controls -->
@@ -305,18 +305,18 @@
                   <i data-lucide="compass" class="w-4 h-4"></i>
                 </div>
                 <div>
-                  <h2 class="text-base sm:text-lg font-bold text-white flex flex-wrap items-center gap-2">
+                  <h2 class="page-title text-base sm:text-lg font-bold flex flex-wrap items-center gap-2">
                     <span>Worldwide Facebook Group Finder</span>
-                    <span class="text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full uppercase">Verified Direct Post Only</span>
+                    <span class="badge-direct-post text-[10px] font-bold px-2 py-0.5 rounded-full uppercase">Verified Direct Post Only</span>
                   </h2>
-                  <p class="text-xs text-gray-400">Discover active, high-traffic Facebook groups worldwide where members can publish posts without admin approval.</p>
+                  <p class="page-subtitle text-xs">Discover active, high-traffic Facebook groups worldwide where members can publish posts without admin approval.</p>
                 </div>
               </div>
             </div>
             <div class="flex items-center space-x-2 shrink-0">
-              <span class="text-xs text-gray-400">Strict Filter:</span>
-              <span class="text-[11px] font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-full flex items-center gap-1.5">
-                <span class="w-2 h-2 rounded-full bg-emerald-400 pulse-green"></span>
+              <span class="page-subtitle text-xs font-medium">Strict Filter:</span>
+              <span class="badge-direct-post text-[11px] font-bold px-2.5 py-1 rounded-full flex items-center gap-1.5">
+                <span class="w-2 h-2 rounded-full bg-emerald-500 pulse-green"></span>
                 <span>No Admin Approval: STRICT</span>
               </span>
             </div>
@@ -361,11 +361,11 @@
                   <i data-lucide="search" class="w-3.5 h-3.5"></i>
                   <span>Discover</span>
                 </button>
-                <button type="button" onclick="openLiveFacebookSearch()" class="col-span-2 sm:flex-1 bg-blue-600/30 hover:bg-blue-600/50 text-blue-200 border border-blue-500/40 px-3 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition" title="Search live Facebook groups directly on facebook.com with Join buttons">
-                  <i data-lucide="external-link" class="w-3.5 h-3.5 text-blue-400"></i>
+                <button type="button" onclick="openLiveFacebookSearch()" class="btn-live-fb col-span-2 sm:flex-1 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition" title="Search live Facebook groups directly on facebook.com with Join buttons">
+                  <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
                   <span>Live on FB</span>
                 </button>
-                <button type="button" onclick="resetFinderFilters()" class="col-span-1 sm:w-auto bg-white/[0.06] hover:bg-white/[0.1] text-gray-300 border border-white/[0.08] px-3 py-2.5 rounded-xl text-xs font-medium flex items-center justify-center" title="Reset Filters">
+                <button type="button" onclick="resetFinderFilters()" class="btn-reset-filters col-span-1 sm:w-auto px-3 py-2.5 rounded-xl text-xs font-medium flex items-center justify-center" title="Reset Filters">
                   <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
                 </button>
               </div>
@@ -375,28 +375,28 @@
             <div class="pt-2 flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs bg-white/[0.02] border border-white/[0.04] p-3 rounded-xl">
               <div class="flex flex-wrap items-center gap-2 sm:gap-3">
                 <!-- STRICT Filter 1: No Admin Approval Required (Highest Priority) -->
-                <label class="flex items-center space-x-2 cursor-pointer select-none bg-emerald-500/10 border border-emerald-500/30 px-3 py-1.5 rounded-lg text-emerald-300 font-semibold hover:bg-emerald-500/20 transition">
+                <label class="filter-toggle-label filter-toggle-strict flex items-center space-x-2 cursor-pointer select-none px-3 py-1.5 rounded-lg text-xs font-semibold transition">
                   <input type="checkbox" id="finder-no-approval" checked onchange="handleFinderSearch()" class="w-4 h-4 accent-emerald-500 rounded cursor-pointer">
                   <span class="flex items-center gap-1.5">
-                    <i data-lucide="shield-check" class="w-3.5 h-3.5 text-emerald-400"></i>
+                    <i data-lucide="shield-check" class="w-3.5 h-3.5"></i>
                     <span>Verified No-Admin-Approval Only</span>
                   </span>
                 </label>
 
                 <!-- Filter 2: Link Permission Confirmed (Requirement 6) -->
-                <label class="flex items-center space-x-2 cursor-pointer select-none bg-white/[0.04] border border-white/[0.08] px-3 py-1.5 rounded-lg text-gray-300 hover:text-white transition">
+                <label class="filter-toggle-label flex items-center space-x-2 cursor-pointer select-none px-3 py-1.5 rounded-lg text-xs font-semibold transition">
                   <input type="checkbox" id="finder-link-allowed" onchange="handleFinderSearch()" class="w-4 h-4 accent-indigo-500 rounded cursor-pointer">
                   <span class="flex items-center gap-1.5">
-                    <i data-lucide="link" class="w-3.5 h-3.5 text-indigo-400"></i>
+                    <i data-lucide="link" class="w-3.5 h-3.5"></i>
                     <span>Confirmed Link Permission Only</span>
                   </span>
                 </label>
 
                 <!-- Filter 3: High Activity Only (Requirement 5) -->
-                <label class="flex items-center space-x-2 cursor-pointer select-none bg-white/[0.04] border border-white/[0.08] px-3 py-1.5 rounded-lg text-gray-300 hover:text-white transition">
+                <label class="filter-toggle-label flex items-center space-x-2 cursor-pointer select-none px-3 py-1.5 rounded-lg text-xs font-semibold transition">
                   <input type="checkbox" id="finder-high-activity" onchange="handleFinderSearch()" class="w-4 h-4 accent-amber-500 rounded cursor-pointer">
                   <span class="flex items-center gap-1.5">
-                    <i data-lucide="zap" class="w-3.5 h-3.5 text-amber-400"></i>
+                    <i data-lucide="zap" class="w-3.5 h-3.5"></i>
                     <span>High Activity Only (>10/day)</span>
                   </span>
                 </label>
@@ -404,7 +404,7 @@
 
               <!-- Sort Order -->
               <div class="flex items-center justify-between sm:justify-start space-x-2 pt-2 md:pt-0 border-t md:border-t-0 border-white/[0.06]">
-                <span class="text-gray-400 text-[11px] font-medium">Sort by:</span>
+                <span class="page-subtitle text-[11px] font-medium">Sort by:</span>
                 <select id="finder-sort" onchange="handleFinderSearch()" class="bg-black/50 border border-white/[0.08] rounded-lg px-2.5 py-1 text-xs text-gray-300 focus:outline-none focus:border-indigo-500">
                   <option value="rank">⭐ Activity Rank (Best First)</option>
                   <option value="members">👥 Largest Members</option>
@@ -417,24 +417,24 @@
         </div>
 
         <!-- Sticky Multi-Select Action Bar (Requirement 8) -->
-        <div class="software-card p-3 sm:p-3.5 px-3 sm:px-5 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 border border-white/[0.08] bg-black/40">
+        <div id="finder-sticky-bar" class="software-card p-3 sm:p-3.5 px-3 sm:px-5 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
           <div class="flex flex-wrap items-center justify-between sm:justify-start gap-2 sm:space-x-3 text-xs">
-            <span id="finder-result-count" class="font-bold text-gray-200">Found 0 verified groups</span>
-            <span class="text-gray-600 hidden sm:inline">|</span>
+            <span id="finder-result-count" class="font-bold text-sm">Found 0 verified groups</span>
+            <span class="text-gray-400 hidden sm:inline">|</span>
             <div class="flex items-center space-x-1.5">
-              <button onclick="selectAllFinderGroups(true)" class="text-indigo-400 hover:text-indigo-300 font-semibold px-1.5 py-0.5 rounded hover:bg-white/[0.04]">Select All</button>
-              <span class="text-gray-600">&bull;</span>
+              <button onclick="selectAllFinderGroups(true)" class="text-indigo-400 hover:text-indigo-300 font-bold px-1.5 py-0.5 rounded hover:bg-indigo-500/10">Select All</button>
+              <span class="text-gray-400">&bull;</span>
               <button onclick="selectAllFinderGroups(false)" class="text-gray-400 hover:text-gray-300 font-semibold px-1.5 py-0.5 rounded hover:bg-white/[0.04]">Unselect All</button>
             </div>
-            <span id="finder-selected-pill" class="text-[11px] font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 px-2 py-0.5 rounded-full">0 Selected</span>
+            <span id="finder-selected-pill" class="text-[11px] font-bold px-2 py-0.5 rounded-full">0 Selected</span>
           </div>
 
           <div class="grid grid-cols-1 sm:grid-cols-2 md:flex items-center gap-2">
-            <button onclick="saveSelectedFinderGroups()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs px-3.5 py-2 sm:py-1.5 rounded-lg flex items-center justify-center gap-1.5 shadow-md shadow-emerald-600/20 transition">
+            <button onclick="saveSelectedFinderGroups()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs px-3.5 py-2 sm:py-1.5 rounded-lg flex items-center justify-center gap-1.5 shadow-md shadow-emerald-600/20 transition">
               <i data-lucide="bookmark-plus" class="w-3.5 h-3.5"></i>
               <span>Save to My Groups</span>
             </button>
-            <button onclick="sendSelectedFinderToPoster()" class="btn-primary-action font-semibold text-xs px-3.5 py-2 sm:py-1.5 rounded-lg flex items-center justify-center gap-1.5">
+            <button onclick="sendSelectedFinderToPoster()" class="btn-primary-action font-bold text-xs px-3.5 py-2 sm:py-1.5 rounded-lg flex items-center justify-center gap-1.5">
               <i data-lucide="send" class="w-3.5 h-3.5"></i>
               <span>1-Click Post to Selected</span>
             </button>
@@ -1583,6 +1583,6 @@ https://www.facebook.com/groups/group2" class="w-full bg-black/50 border border-
   <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col space-y-2 pointer-events-none"></div>
 
   <!-- Client Script -->
-  <script src="/app.js"></script>
+  <script src="/app.js?v=20261122_light_dark_v3"></script>
 </body>
 </html>

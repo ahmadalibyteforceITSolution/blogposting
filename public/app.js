@@ -40,6 +40,7 @@ let state = {
 // --- Initialization ---
 document.addEventListener('DOMContentLoaded', () => {
   initTheme();
+  switchTab(state.activeTab || 'groupfinder');
   if (window.lucide) lucide.createIcons();
   initEventSource();
   loadAllData();
@@ -1761,33 +1762,38 @@ function renderFinderResults() {
     const isLinkAllowed = g.linkPermission === 'ALLOWED';
     const fbSearchUrl = `https://www.facebook.com/groups/search/groups/?q=${encodeURIComponent(g.name)}`;
 
+    // Clean member count parsing to eliminate any possibility of NaN
+    const rawMembers = String(g.members || '50000').replace(/[^0-9]/g, '');
+    const memberNum = parseInt(rawMembers, 10) || 50000;
+    const memberFormatted = memberNum.toLocaleString();
+
     return `
-      <div class="software-card p-4 flex flex-col justify-between hover:border-white/[0.15] transition relative ${isSelected ? 'ring-1 ring-indigo-500 bg-indigo-950/20' : ''}">
+      <div class="software-card p-4 flex flex-col justify-between hover:border-indigo-500/30 transition relative ${isSelected ? 'ring-2 ring-indigo-500 bg-indigo-500/10' : ''}">
         <div class="space-y-3">
           <!-- Card Header: Checkbox + Flag + Members -->
           <div class="flex items-start justify-between gap-2">
             <div class="flex items-center space-x-2.5">
               <input type="checkbox" ${isSelected ? 'checked' : ''} onchange="toggleFinderGroupSelection('${g.id}', this.checked)" class="w-4 h-4 accent-indigo-600 rounded cursor-pointer">
               <span class="text-base" title="${g.country}">${flag}</span>
-              <span class="text-[10px] font-bold uppercase tracking-wider text-gray-400 bg-white/[0.04] px-1.5 py-0.5 rounded border border-white/[0.06]">${g.country}</span>
+              <span class="card-country-badge text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded">${g.country}</span>
             </div>
-            <div class="flex items-center gap-1 text-[11px] font-semibold text-gray-400">
-              <i data-lucide="users" class="w-3.5 h-3.5 text-gray-500"></i>
-              <span>${Number(g.members || 0).toLocaleString()}</span>
+            <div class="card-members-badge flex items-center gap-1 text-[11px] font-semibold">
+              <i data-lucide="users" class="w-3.5 h-3.5 opacity-70"></i>
+              <span>${memberFormatted}</span>
             </div>
           </div>
 
           <!-- Group Title & Dual Links -->
           <div>
-            <h4 class="font-bold text-sm text-gray-100 hover:text-white line-clamp-1">${escapeHtml(g.name)}</h4>
+            <h4 class="card-group-title font-bold text-sm line-clamp-1">${escapeHtml(g.name)}</h4>
             <div class="flex items-center flex-wrap gap-2 mt-1.5">
-              <a href="${g.url}" target="_blank" class="text-[11px] text-indigo-400 hover:underline flex items-center gap-1 font-mono truncate max-w-[130px]" title="Direct Group URL">
+              <a href="${g.url}" target="_blank" class="card-group-link text-[11px] font-mono truncate max-w-[130px] flex items-center gap-1" title="Direct Group URL">
                 <i data-lucide="link" class="w-3 h-3 shrink-0"></i>
                 <span class="truncate">${escapeHtml(g.url.replace('https://www.facebook.com/groups/', 'fb/'))}</span>
               </a>
-              <span class="text-gray-600 text-xs">•</span>
-              <a href="${fbSearchUrl}" target="_blank" class="text-[10px] font-bold text-blue-300 hover:text-white bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 px-2 py-0.5 rounded-full flex items-center gap-1 transition" title="Search live on Facebook with instant Join buttons">
-                <i data-lucide="search" class="w-2.5 h-2.5 text-blue-400"></i>
+              <span class="text-gray-400 text-xs">•</span>
+              <a href="${fbSearchUrl}" target="_blank" class="btn-card-fb-join text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 transition" title="Search live on Facebook with instant Join buttons">
+                <i data-lucide="search" class="w-2.5 h-2.5"></i>
                 <span>Search FB (Join)</span>
               </a>
             </div>
@@ -1795,46 +1801,46 @@ function renderFinderResults() {
 
           <!-- Verification Badges (Strict Approval + Link Policy) -->
           <div class="flex flex-wrap gap-1.5 pt-1">
-            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 ${isNoApproval ? 'bg-emerald-500/10 text-emerald-300 border border-emerald-500/30' : 'bg-red-500/10 text-red-300 border border-red-500/30'}">
+            <span class="badge-status text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 ${isNoApproval ? 'badge-direct-post' : 'badge-approval-needed'}">
               <i data-lucide="${isNoApproval ? 'shield-check' : 'shield-alert'}" class="w-3 h-3"></i>
               <span>${isNoApproval ? '🛡️ Direct Post (No Approval)' : '⚠️ Admin Review Required'}</span>
             </span>
 
-            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 ${isLinkAllowed ? 'bg-cyan-500/10 text-cyan-300 border border-cyan-500/30' : 'bg-amber-500/10 text-amber-300 border border-amber-500/30'}">
+            <span class="badge-status text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 ${isLinkAllowed ? 'badge-link-allowed' : 'badge-link-restricted'}">
               <i data-lucide="${isLinkAllowed ? 'link' : 'link-2-off'}" class="w-3 h-3"></i>
               <span>${isLinkAllowed ? '🔗 Links Allowed' : '⛔ Link Restricted'}</span>
             </span>
           </div>
 
           <!-- Activity Velocity Widget (Requirement 5) -->
-          <div class="bg-black/40 border border-white/[0.04] p-2.5 rounded-xl grid grid-cols-3 gap-2 text-center text-xs">
+          <div class="card-velocity-widget p-2.5 rounded-xl grid grid-cols-3 gap-2 text-center text-xs">
             <div>
-              <span class="text-[10px] text-gray-500 block">7-Day Posts</span>
-              <strong class="text-white font-bold">${g.activity7d || 0}</strong>
+              <span class="card-velocity-label text-[10px] block">7-Day Posts</span>
+              <strong class="card-velocity-val font-bold">${g.activity7d || 0}</strong>
             </div>
             <div>
-              <span class="text-[10px] text-gray-500 block">Daily Velocity</span>
-              <strong class="text-emerald-400 font-bold">${g.dailyVelocity || 0}/day</strong>
+              <span class="card-velocity-label text-[10px] block">Daily Velocity</span>
+              <strong class="card-velocity-emerald font-bold">${g.dailyVelocity || 0}/day</strong>
             </div>
             <div>
-              <span class="text-[10px] text-gray-500 block">Activity Rank</span>
-              <strong class="text-amber-400 font-bold">${g.activityRankScore || 'High'}</strong>
+              <span class="card-velocity-label text-[10px] block">Activity Rank</span>
+              <strong class="card-velocity-amber font-bold">${g.activityRankScore || 'High'}</strong>
             </div>
           </div>
         </div>
 
         <!-- Card Footer Action Buttons -->
-        <div class="pt-3 border-t border-white/[0.06] flex items-center justify-between gap-2 mt-3">
-          <button onclick="verifySingleGroupLive('${g.id}', '${encodeURIComponent(g.url)}')" class="text-[11px] text-gray-400 hover:text-emerald-400 flex items-center gap-1 bg-white/[0.04] px-2 py-1 rounded hover:bg-white/[0.08] transition" title="Inspect Facebook group DOM live">
+        <div class="card-footer-bar pt-3 border-t flex items-center justify-between gap-2 mt-3">
+          <button onclick="verifySingleGroupLive('${g.id}', '${encodeURIComponent(g.url)}')" class="btn-card-verify text-[11px] px-2 py-1 rounded flex items-center gap-1 transition" title="Inspect Facebook group DOM live">
             <i data-lucide="check-circle" class="w-3 h-3"></i>
             <span>Verify Live</span>
           </button>
           <div class="flex items-center space-x-1.5">
-            <button onclick="saveSingleFinderGroup('${g.id}')" class="text-[11px] bg-emerald-600/20 text-emerald-300 hover:bg-emerald-600 hover:text-white px-2.5 py-1 rounded-lg font-semibold flex items-center gap-1 transition">
+            <button onclick="saveSingleFinderGroup('${g.id}')" class="btn-card-save text-[11px] px-2.5 py-1 rounded-lg font-bold flex items-center gap-1 transition">
               <i data-lucide="bookmark-plus" class="w-3 h-3"></i>
               <span>Save</span>
             </button>
-            <a href="${g.url}" target="_blank" class="p-1 text-gray-400 hover:text-white bg-white/[0.04] rounded-lg">
+            <a href="${g.url}" target="_blank" class="btn-card-extlink p-1 rounded-lg transition" title="Open in Facebook">
               <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
             </a>
           </div>
