@@ -1,0 +1,7 @@
+node_modules/
+data/chrome_profile/
+data/uploads/
+data/db.json
+.env
+npm-debug.log*
+.DS_Store

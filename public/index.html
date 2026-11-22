@@ -1,0 +1,905 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FB AutoBlog Master - Auto Facebook & Groups Poster</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              100: '#e0e7ff',
+              500: '#6366f1',
+              600: '#4f46e5',
+              700: '#4338ca',
+            },
+            dark: {
+              bg: '#0B0F19',
+              card: '#111827',
+              border: '#1F2937',
+              accent: '#1E293B'
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body class="bg-[#0B0F19] text-gray-100 min-h-screen font-sans flex flex-col antialiased">
+
+  <!-- Header -->
+  <header class="border-b border-gray-800 bg-[#111827]/80 backdrop-blur-md sticky top-0 z-40 px-6 py-3.5">
+    <div class="max-w-7xl mx-auto flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/20 text-white font-bold">
+          <i data-lucide="share-2" class="w-5 h-5"></i>
+        </div>
+        <div>
+          <div class="flex items-center space-x-2">
+            <h1 class="text-xl font-bold bg-gradient-to-r from-blue-400 via-indigo-300 to-purple-400 bg-clip-text text-transparent">
+              FB AutoBlog Master
+            </h1>
+            <span class="text-[10px] font-semibold uppercase tracking-wider bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 px-2 py-0.5 rounded-full">v1.0 Pro</span>
+          </div>
+          <p class="text-xs text-gray-400">Autonomous & One-Click Facebook Groups & Pages Multi-Poster</p>
+        </div>
+      </div>
+
+      <!-- Live Status & Quick Action -->
+      <div class="flex items-center space-x-4">
+        <!-- Facebook Session Status -->
+        <div id="fb-status-pill" class="flex items-center space-x-2 bg-gray-800/80 border border-gray-700/60 px-3.5 py-1.5 rounded-full text-xs">
+          <span class="w-2.5 h-2.5 rounded-full bg-yellow-500 animate-pulse" id="fb-status-dot"></span>
+          <span id="fb-status-text" class="text-gray-300">Checking FB Session...</span>
+          <button id="btn-login-fb" onclick="openLoginModal()" class="ml-1 text-indigo-400 hover:text-indigo-300 font-medium underline">
+            Connect
+          </button>
+        </div>
+
+        <!-- Engine Status -->
+        <div id="engine-status-pill" class="hidden sm:flex items-center space-x-2 bg-gray-800/80 border border-gray-700/60 px-3 py-1.5 rounded-full text-xs">
+          <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+          <span id="engine-status-text" class="text-gray-300">Engine Ready</span>
+        </div>
+
+        <!-- Quick 1-Click Launch Button -->
+        <button onclick="switchTab('oneclick')" class="flex items-center space-x-2 bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white px-4 py-2 rounded-xl text-sm font-semibold shadow-lg shadow-indigo-600/30 transition transform hover:-translate-y-0.5 active:translate-y-0">
+          <i data-lucide="zap" class="w-4 h-4"></i>
+          <span>1-Click Post</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Navigation Tabs -->
+  <div class="border-b border-gray-800/80 bg-[#0E1424] px-6">
+    <div class="max-w-7xl mx-auto flex space-x-1 sm:space-x-4 overflow-x-auto py-2">
+      <button onclick="switchTab('overview')" class="tab-btn active" id="tab-btn-overview">
+        <i data-lucide="layout-dashboard" class="w-4 h-4 mr-2"></i> Overview
+      </button>
+      <button onclick="switchTab('oneclick')" class="tab-btn" id="tab-btn-oneclick">
+        <i data-lucide="send" class="w-4 h-4 mr-2"></i> 1-Click Multi-Poster
+      </button>
+      <button onclick="switchTab('blogs')" class="tab-btn" id="tab-btn-blogs">
+        <i data-lucide="file-text" class="w-4 h-4 mr-2"></i> Blog Posts
+      </button>
+      <button onclick="switchTab('groups')" class="tab-btn" id="tab-btn-groups">
+        <i data-lucide="users" class="w-4 h-4 mr-2"></i> Facebook Groups
+      </button>
+      <button onclick="switchTab('autopilot')" class="tab-btn" id="tab-btn-autopilot">
+        <i data-lucide="clock" class="w-4 h-4 mr-2"></i> Auto-Pilot Campaigns
+      </button>
+      <button onclick="switchTab('history')" class="tab-btn" id="tab-btn-history">
+        <i data-lucide="list-ordered" class="w-4 h-4 mr-2"></i> Posting Logs
+      </button>
+      <button onclick="switchTab('settings')" class="tab-btn" id="tab-btn-settings">
+        <i data-lucide="settings" class="w-4 h-4 mr-2"></i> Settings
+      </button>
+    </div>
+  </div>
+
+  <!-- Content Containers -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6">
+
+    <!-- TAB 1: OVERVIEW -->
+    <section id="tab-overview" class="tab-content space-y-6">
+      <!-- Metric Cards -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="stat-card">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-semibold uppercase tracking-wider text-gray-400">Total Blog Posts</span>
+            <div class="p-2 bg-blue-500/10 text-blue-400 rounded-lg"><i data-lucide="file-text" class="w-4 h-4"></i></div>
+          </div>
+          <div class="text-2xl font-bold mt-2" id="stat-posts">0</div>
+          <span class="text-xs text-gray-400 mt-1 flex items-center">
+            <span id="stat-rss-sources">0</span> RSS feeds connected
+          </span>
+        </div>
+
+        <div class="stat-card">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-semibold uppercase tracking-wider text-gray-400">Active FB Groups</span>
+            <div class="p-2 bg-purple-500/10 text-purple-400 rounded-lg"><i data-lucide="users" class="w-4 h-4"></i></div>
+          </div>
+          <div class="text-2xl font-bold mt-2" id="stat-groups">0</div>
+          <span class="text-xs text-gray-400 mt-1 flex items-center">
+            Ready for multi-posting
+          </span>
+        </div>
+
+        <div class="stat-card">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-semibold uppercase tracking-wider text-gray-400">Successful Posts</span>
+            <div class="p-2 bg-emerald-500/10 text-emerald-400 rounded-lg"><i data-lucide="check-circle-2" class="w-4 h-4"></i></div>
+          </div>
+          <div class="text-2xl font-bold mt-2 text-emerald-400" id="stat-success">0</div>
+          <span class="text-xs text-gray-400 mt-1 flex items-center">
+            Failed: <span id="stat-failed" class="text-red-400 ml-1">0</span>
+          </span>
+        </div>
+
+        <div class="stat-card">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-semibold uppercase tracking-wider text-gray-400">Auto Campaigns</span>
+            <div class="p-2 bg-amber-500/10 text-amber-400 rounded-lg"><i data-lucide="clock" class="w-4 h-4"></i></div>
+          </div>
+          <div class="text-2xl font-bold mt-2 text-amber-400" id="stat-campaigns">0</div>
+          <span class="text-xs text-gray-400 mt-1">Autonomous 24/7 schedules</span>
+        </div>
+      </div>
+
+      <!-- Quick Actions & System Info -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Live Action Hub -->
+        <div class="lg:col-span-2 bg-[#111827] border border-gray-800 rounded-2xl p-6 shadow-xl space-y-4">
+          <div class="flex items-center justify-between border-b border-gray-800/80 pb-4">
+            <div>
+              <h2 class="text-lg font-bold flex items-center gap-2">
+                <i data-lucide="rocket" class="w-5 h-5 text-indigo-400"></i> Fast Multi-Post Launcher
+              </h2>
+              <p class="text-xs text-gray-400">Distribute any blog post to your configured Facebook groups in 1 click.</p>
+            </div>
+            <button onclick="switchTab('oneclick')" class="text-xs font-medium text-indigo-400 hover:text-indigo-300">
+              Open Full Studio &rarr;
+            </button>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div class="bg-gray-800/40 p-4 rounded-xl border border-gray-700/50 space-y-3">
+              <span class="text-xs font-semibold text-gray-300 flex items-center gap-1.5">
+                <i data-lucide="link" class="w-4 h-4 text-blue-400"></i> Auto-Fetch Any Blog URL
+              </span>
+              <p class="text-xs text-gray-400">Paste any blog article link to automatically extract preview card, title, and excerpt.</p>
+              <div class="flex gap-2">
+                <input type="text" id="quick-url-input" placeholder="https://myblog.com/post" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-indigo-500">
+                <button onclick="handleQuickScrape()" class="bg-indigo-600 hover:bg-indigo-500 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap">
+                  Fetch
+                </button>
+              </div>
+            </div>
+
+            <div class="bg-gray-800/40 p-4 rounded-xl border border-gray-700/50 space-y-3">
+              <span class="text-xs font-semibold text-gray-300 flex items-center gap-1.5">
+                <i data-lucide="shield-check" class="w-4 h-4 text-emerald-400"></i> Anti-Ban Safeguards Active
+              </span>
+              <ul class="text-xs text-gray-400 space-y-1">
+                <li>• Random jitter delay (45 - 90s) between group posts</li>
+                <li>• Spintax syntax randomization on every submission</li>
+                <li>• Human-like keystroke and mouse simulation</li>
+              </ul>
+              <button onclick="switchTab('settings')" class="text-xs text-indigo-400 hover:underline">
+                Adjust safety thresholds &rarr;
+              </button>
+            </div>
+          </div>
+
+          <!-- Active or Last Execution Stream -->
+          <div class="bg-gray-900/90 rounded-xl border border-gray-800 p-4 space-y-2">
+            <div class="flex items-center justify-between text-xs">
+              <span class="font-semibold text-gray-300 flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-indigo-500 animate-ping"></span> Live Activity Monitor
+              </span>
+              <button onclick="clearDashboardLogs()" class="text-gray-400 hover:text-gray-200">Clear</button>
+            </div>
+            <div id="overview-console-log" class="font-mono text-xs text-gray-400 bg-black/40 rounded-lg p-3 h-32 overflow-y-auto space-y-1">
+              <div class="text-gray-500 italic">Listening for live posting actions...</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Facebook Session Card -->
+        <div class="bg-[#111827] border border-gray-800 rounded-2xl p-6 shadow-xl flex flex-col justify-between space-y-4">
+          <div>
+            <div class="flex items-center justify-between pb-3 border-b border-gray-800">
+              <h3 class="font-bold text-sm text-gray-200 flex items-center gap-2">
+                <i data-lucide="facebook" class="w-4 h-4 text-blue-500"></i> Facebook Account
+              </h3>
+              <span id="session-badge" class="px-2 py-0.5 rounded text-[11px] font-semibold bg-gray-800 text-gray-400">Checking...</span>
+            </div>
+
+            <div class="mt-4 space-y-3 text-xs text-gray-400">
+              <p>Your session is stored locally in your Chrome profile directory. You only need to log in once.</p>
+              <div class="bg-gray-800/50 p-3 rounded-lg border border-gray-700/40 space-y-2">
+                <div class="flex justify-between">
+                  <span>Profile Location:</span>
+                  <span class="font-mono text-[10px] text-gray-300 truncate max-w-[150px]" title="./data/chrome_profile">./data/chrome_profile</span>
+                </div>
+                <div class="flex justify-between">
+                  <span>Detected Browser:</span>
+                  <span class="text-gray-300">Google Chrome</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="space-y-2 pt-4">
+            <button onclick="openLoginModal()" class="w-full bg-blue-600 hover:bg-blue-500 text-white py-2.5 rounded-xl text-xs font-semibold shadow-lg shadow-blue-600/20 flex items-center justify-center gap-2">
+              <i data-lucide="external-link" class="w-4 h-4"></i>
+              Open Facebook Login Browser
+            </button>
+            <button onclick="checkFacebookLogin(true)" class="w-full bg-gray-800 hover:bg-gray-700 text-gray-300 py-2 rounded-xl text-xs font-medium border border-gray-700 flex items-center justify-center gap-1.5">
+              <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+              Re-check Session Status
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 2: ONE-CLICK MULTI-POSTER -->
+    <section id="tab-oneclick" class="tab-content hidden space-y-6">
+      <div class="bg-[#111827] border border-gray-800 rounded-2xl p-6 shadow-xl space-y-6">
+        <div>
+          <h2 class="text-xl font-bold flex items-center gap-2">
+            <i data-lucide="send" class="w-5 h-5 text-indigo-400"></i> One-Click Multi-Poster Studio
+          </h2>
+          <p class="text-xs text-gray-400 mt-1">Select your blog post, pick target Facebook groups, configure multi-post repetitions, and launch.</p>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          <!-- Step 1 & 2: Post Selection & Message Customization (7 cols) -->
+          <div class="lg:col-span-7 space-y-5">
+            <!-- Select Blog Post -->
+            <div class="space-y-2">
+              <div class="flex justify-between items-center">
+                <label class="text-xs font-bold uppercase tracking-wider text-gray-300 flex items-center gap-2">
+                  <span class="w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center text-xs">1</span>
+                  Select Blog Post to Publish
+                </label>
+                <button onclick="switchTab('blogs')" class="text-xs text-indigo-400 hover:underline">+ New Post</button>
+              </div>
+              <select id="oneclick-post-select" onchange="handlePostSelectionChange()" class="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-2.5 text-sm text-gray-200 focus:outline-none focus:border-indigo-500">
+                <option value="">-- Choose a Blog Post --</option>
+              </select>
+            </div>
+
+            <!-- Preview Card -->
+            <div id="post-preview-container" class="bg-gray-900/80 border border-gray-800 rounded-xl p-4 space-y-3">
+              <span class="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Facebook Live Preview</span>
+              <div class="border border-gray-700/60 rounded-xl bg-gray-950 p-4 space-y-3">
+                <div class="flex items-center space-x-2.5">
+                  <div class="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold text-xs">FB</div>
+                  <div>
+                    <div class="text-xs font-semibold text-gray-200">Your Facebook Account</div>
+                    <div class="text-[10px] text-gray-500">Just now • 👥 Public / Group</div>
+                  </div>
+                </div>
+
+                <div id="preview-text" class="text-xs text-gray-200 whitespace-pre-line">
+                  Select a post above to preview how it will appear when published to Facebook groups...
+                </div>
+
+                <div id="preview-link-card" class="hidden border border-gray-800 rounded-lg overflow-hidden bg-gray-900">
+                  <img id="preview-image" src="" alt="Post image" class="w-full h-40 object-cover hidden">
+                  <div class="p-3 space-y-1">
+                    <div id="preview-card-domain" class="text-[10px] uppercase font-semibold text-gray-400">EXAMPLE.COM</div>
+                    <div id="preview-card-title" class="text-xs font-bold text-gray-200 line-clamp-1">Post Title</div>
+                    <div id="preview-card-desc" class="text-[11px] text-gray-400 line-clamp-2">Post description</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Custom Message / Spintax Override -->
+            <div class="space-y-2">
+              <label class="text-xs font-bold uppercase tracking-wider text-gray-300 flex items-center gap-2">
+                <span class="w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center text-xs">2</span>
+                Custom Spintax Phrasing (Optional)
+              </label>
+              <p class="text-[11px] text-gray-400">Use <code class="text-indigo-300">{Option 1|Option 2|Option 3}</code> to dynamically vary text across every group post.</p>
+              <textarea id="oneclick-custom-message" rows="2" placeholder="{Check out|Read|Discover}: {Our latest article|New blog release}!" class="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-2 text-xs text-gray-200 focus:outline-none focus:border-indigo-500"></textarea>
+            </div>
+          </div>
+
+          <!-- Step 3: Target Groups Selection & Repetition Controls (5 cols) -->
+          <div class="lg:col-span-5 space-y-5">
+            <div class="space-y-3">
+              <div class="flex items-center justify-between">
+                <label class="text-xs font-bold uppercase tracking-wider text-gray-300 flex items-center gap-2">
+                  <span class="w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center text-xs">3</span>
+                  Select Target Groups
+                </label>
+                <div class="space-x-1">
+                  <button type="button" onclick="selectAllGroups(true)" class="text-[11px] text-indigo-400 hover:text-indigo-300 font-medium">Select All</button>
+                  <span class="text-gray-600">|</span>
+                  <button type="button" onclick="selectAllGroups(false)" class="text-[11px] text-gray-400 hover:text-gray-300 font-medium">None</button>
+                </div>
+              </div>
+
+              <!-- Group Filter Tags -->
+              <div id="group-filter-tags" class="flex flex-wrap gap-1.5 pb-1">
+                <!-- Injected via app.js -->
+              </div>
+
+              <!-- Group Checkbox List -->
+              <div id="oneclick-group-list" class="bg-gray-900 border border-gray-700 rounded-xl p-3 max-h-56 overflow-y-auto space-y-2">
+                <!-- Injected via app.js -->
+                <div class="text-xs text-gray-500 italic">Loading groups...</div>
+              </div>
+              <div class="text-[11px] text-gray-400 flex justify-between">
+                <span>Selected: <strong id="selected-groups-count" class="text-indigo-400">0</strong> groups</span>
+                <button onclick="switchTab('groups')" class="text-indigo-400 hover:underline">+ Add more groups</button>
+              </div>
+            </div>
+
+            <!-- Multi-Posting & Repetition Settings -->
+            <div class="bg-gray-800/40 border border-gray-700/60 rounded-xl p-4 space-y-3">
+              <label class="text-xs font-bold uppercase tracking-wider text-gray-300 flex items-center gap-2">
+                <span class="w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center text-xs">4</span>
+                Multi-Posting & Repeat Cycles
+              </label>
+
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <label class="text-[11px] text-gray-400 block mb-1">Repeat Posting</label>
+                  <select id="oneclick-repeat-count" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-2.5 py-1.5 text-xs text-gray-200">
+                    <option value="1">1 time (Single pass)</option>
+                    <option value="2">2 times (Re-post twice)</option>
+                    <option value="3">3 times (Recommended)</option>
+                    <option value="5">5 times</option>
+                    <option value="10">10 times</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label class="text-[11px] text-gray-400 block mb-1">Jitter Delay (Sec)</label>
+                  <div class="flex items-center space-x-1">
+                    <input type="number" id="oneclick-delay-min" value="45" min="15" class="w-14 bg-gray-900 border border-gray-700 rounded-lg px-2 py-1.5 text-xs text-center text-gray-200">
+                    <span class="text-gray-500 text-xs">-</span>
+                    <input type="number" id="oneclick-delay-max" value="90" min="20" class="w-14 bg-gray-900 border border-gray-700 rounded-lg px-2 py-1.5 text-xs text-center text-gray-200">
+                  </div>
+                </div>
+              </div>
+              <p class="text-[10px] text-gray-400">Randomized delays simulate human typing and prevent Facebook automated rate-limiting.</p>
+            </div>
+
+            <!-- Big Launch Button -->
+            <button id="btn-dispatch-oneclick" onclick="dispatchOneClickPost()" class="w-full bg-gradient-to-r from-emerald-600 via-indigo-600 to-blue-600 hover:from-emerald-500 hover:to-blue-500 text-white py-3.5 rounded-xl font-bold text-sm shadow-xl shadow-indigo-600/25 flex items-center justify-center gap-2 transition transform hover:-translate-y-0.5 active:translate-y-0">
+              <i data-lucide="zap" class="w-5 h-5"></i>
+              <span>Launch Multi-Post Now</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 3: BLOG POSTS CATALOG -->
+    <section id="tab-blogs" class="tab-content hidden space-y-6">
+      <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
+        <div>
+          <h2 class="text-xl font-bold flex items-center gap-2">
+            <i data-lucide="file-text" class="w-5 h-5 text-indigo-400"></i> Blog Posts Manager
+          </h2>
+          <p class="text-xs text-gray-400 mt-1">Manage articles, scrape blog URLs, and sync with RSS feeds.</p>
+        </div>
+        <div class="flex gap-2">
+          <button onclick="openRssModal()" class="bg-gray-800 hover:bg-gray-700 text-gray-200 px-3 py-2 rounded-xl text-xs font-semibold border border-gray-700 flex items-center gap-1.5">
+            <i data-lucide="rss" class="w-4 h-4 text-orange-400"></i> Manage RSS Feeds
+          </button>
+          <button onclick="openNewPostModal()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-xl text-xs font-semibold shadow-lg shadow-indigo-600/30 flex items-center gap-1.5">
+            <i data-lucide="plus" class="w-4 h-4"></i> Add Blog Post
+          </button>
+        </div>
+      </div>
+
+      <!-- Quick Blog URL Scraper Bar -->
+      <div class="bg-gradient-to-r from-indigo-950/40 via-blue-950/30 to-purple-950/30 border border-indigo-900/40 rounded-2xl p-4 flex flex-col md:flex-row items-center gap-3">
+        <div class="flex items-center gap-2 text-indigo-300 text-xs font-bold whitespace-nowrap">
+          <i data-lucide="sparkles" class="w-4 h-4"></i> Auto-Ingest from URL:
+        </div>
+        <input type="url" id="blog-scrape-url" placeholder="Paste full blog article URL (e.g. https://yoursite.com/my-article)..." class="w-full bg-gray-900/90 border border-gray-700 rounded-xl px-4 py-2 text-xs text-gray-200 focus:outline-none focus:border-indigo-500">
+        <button onclick="scrapeAndCreatePost()" class="w-full md:w-auto bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap shadow-md">
+          Auto-Create Post
+        </button>
+      </div>
+
+      <!-- Posts Grid -->
+      <div id="posts-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <!-- Rendered via app.js -->
+      </div>
+    </section>
+
+    <!-- TAB 4: FACEBOOK GROUPS -->
+    <section id="tab-groups" class="tab-content hidden space-y-6">
+      <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
+        <div>
+          <h2 class="text-xl font-bold flex items-center gap-2">
+            <i data-lucide="users" class="w-5 h-5 text-indigo-400"></i> Target Facebook Groups & Pages
+          </h2>
+          <p class="text-xs text-gray-400 mt-1">Configure groups where your articles will be published automatically.</p>
+        </div>
+        <div class="flex gap-2">
+          <button onclick="openBulkGroupModal()" class="bg-gray-800 hover:bg-gray-700 text-gray-200 px-3 py-2 rounded-xl text-xs font-semibold border border-gray-700 flex items-center gap-1.5">
+            <i data-lucide="file-spreadsheet" class="w-4 h-4 text-emerald-400"></i> Bulk Import URLs
+          </button>
+          <button onclick="openNewGroupModal()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-xl text-xs font-semibold shadow-lg shadow-indigo-600/30 flex items-center gap-1.5">
+            <i data-lucide="plus" class="w-4 h-4"></i> Add Target Group
+          </button>
+        </div>
+      </div>
+
+      <!-- Groups Table -->
+      <div class="bg-[#111827] border border-gray-800 rounded-2xl overflow-hidden shadow-xl">
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-gray-800/60 uppercase tracking-wider text-gray-400 font-semibold border-b border-gray-800">
+              <tr>
+                <th class="px-5 py-3">Group Name & URL</th>
+                <th class="px-4 py-3">Type</th>
+                <th class="px-4 py-3">Tags</th>
+                <th class="px-4 py-3">Total Posts</th>
+                <th class="px-4 py-3">Status</th>
+                <th class="px-5 py-3 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="groups-table-body" class="divide-y divide-gray-800/80">
+              <!-- Rendered via app.js -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 5: AUTO-PILOT CAMPAIGNS -->
+    <section id="tab-autopilot" class="tab-content hidden space-y-6">
+      <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
+        <div>
+          <h2 class="text-xl font-bold flex items-center gap-2">
+            <i data-lucide="clock" class="w-5 h-5 text-indigo-400"></i> Auto-Pilot Recurring Campaigns
+          </h2>
+          <p class="text-xs text-gray-400 mt-1">Autonomous 24/7 schedules: automatically post new and rotating blog articles multiple times.</p>
+        </div>
+        <button onclick="openNewCampaignModal()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-xl text-xs font-semibold shadow-lg shadow-indigo-600/30 flex items-center gap-1.5">
+          <i data-lucide="plus" class="w-4 h-4"></i> Create Campaign
+        </button>
+      </div>
+
+      <!-- Campaigns Grid -->
+      <div id="campaigns-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        <!-- Rendered via app.js -->
+      </div>
+    </section>
+
+    <!-- TAB 6: POSTING LOGS & HISTORY -->
+    <section id="tab-history" class="tab-content hidden space-y-6">
+      <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
+        <div>
+          <h2 class="text-xl font-bold flex items-center gap-2">
+            <i data-lucide="list-ordered" class="w-5 h-5 text-indigo-400"></i> Execution History & Audit Logs
+          </h2>
+          <p class="text-xs text-gray-400 mt-1">Real-time record of all blog submissions to Facebook groups.</p>
+        </div>
+        <button onclick="clearHistoryLogs()" class="bg-gray-800 hover:bg-red-900/50 hover:text-red-300 text-gray-300 px-3 py-2 rounded-xl text-xs font-medium border border-gray-700 flex items-center gap-1.5 transition">
+          <i data-lucide="trash-2" class="w-4 h-4"></i> Clear All Logs
+        </button>
+      </div>
+
+      <div class="bg-[#111827] border border-gray-800 rounded-2xl overflow-hidden shadow-xl">
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-gray-800/60 uppercase tracking-wider text-gray-400 font-semibold border-b border-gray-800">
+              <tr>
+                <th class="px-5 py-3">Timestamp</th>
+                <th class="px-4 py-3">Facebook Group</th>
+                <th class="px-4 py-3">Blog Post</th>
+                <th class="px-4 py-3">Status</th>
+                <th class="px-5 py-3">Details / Error</th>
+              </tr>
+            </thead>
+            <tbody id="history-table-body" class="divide-y divide-gray-800/80">
+              <!-- Rendered via app.js -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 7: SETTINGS -->
+    <section id="tab-settings" class="tab-content hidden space-y-6">
+      <div class="max-w-3xl bg-[#111827] border border-gray-800 rounded-2xl p-6 shadow-xl space-y-6">
+        <div>
+          <h2 class="text-xl font-bold flex items-center gap-2">
+            <i data-lucide="settings" class="w-5 h-5 text-indigo-400"></i> System Configuration & Anti-Ban Settings
+          </h2>
+          <p class="text-xs text-gray-400 mt-1">Fine-tune automation behavior, Chrome engine paths, and anti-spam throttles.</p>
+        </div>
+
+        <form id="settings-form" onsubmit="handleSaveSettings(event)" class="space-y-5">
+          <!-- Anti-Ban Delays -->
+          <div class="bg-gray-800/40 p-4 rounded-xl border border-gray-700/50 space-y-3">
+            <h3 class="text-xs font-bold uppercase tracking-wider text-indigo-300">Anti-Ban Random Jitter Delay</h3>
+            <p class="text-xs text-gray-400">Sets the wait duration between posting to consecutive groups. Higher delays safeguard your account.</p>
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label class="text-xs text-gray-300 block mb-1">Minimum Delay (Seconds)</label>
+                <input type="number" id="setting-min-delay" min="15" max="300" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-xs text-gray-200">
+              </div>
+              <div>
+                <label class="text-xs text-gray-300 block mb-1">Maximum Delay (Seconds)</label>
+                <input type="number" id="setting-max-delay" min="20" max="600" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-xs text-gray-200">
+              </div>
+            </div>
+          </div>
+
+          <!-- Chrome Path & Headless -->
+          <div class="bg-gray-800/40 p-4 rounded-xl border border-gray-700/50 space-y-3">
+            <h3 class="text-xs font-bold uppercase tracking-wider text-indigo-300">Browser Engine Options</h3>
+            <div>
+              <label class="text-xs text-gray-300 block mb-1">Chrome Executable Path</label>
+              <input type="text" id="setting-chrome-path" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-xs text-gray-200 font-mono">
+            </div>
+
+            <div class="flex items-center justify-between pt-2">
+              <div>
+                <div class="text-xs font-semibold text-gray-200">Headless Mode</div>
+                <div class="text-[11px] text-gray-400">Run quietly in background without popping up browser windows. (Uncheck to watch the robot live!)</div>
+              </div>
+              <input type="checkbox" id="setting-headless" class="w-4 h-4 accent-indigo-600 rounded">
+            </div>
+          </div>
+
+          <!-- Spintax Defaults -->
+          <div class="bg-gray-800/40 p-4 rounded-xl border border-gray-700/50 space-y-3">
+            <div class="flex items-center justify-between">
+              <h3 class="text-xs font-bold uppercase tracking-wider text-indigo-300">Dynamic Spintax Variations</h3>
+              <div class="flex items-center space-x-2">
+                <label for="setting-spintax-enabled" class="text-xs text-gray-400">Enable Spintax</label>
+                <input type="checkbox" id="setting-spintax-enabled" class="w-4 h-4 accent-indigo-600 rounded">
+              </div>
+            </div>
+
+            <div>
+              <label class="text-xs text-gray-300 block mb-1">Default Post Prefix (Spintax format)</label>
+              <input type="text" id="setting-spintax-prefix" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-xs text-gray-200 font-mono">
+            </div>
+
+            <div>
+              <label class="text-xs text-gray-300 block mb-1">Default Post Suffix</label>
+              <input type="text" id="setting-spintax-suffix" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-xs text-gray-200 font-mono">
+            </div>
+          </div>
+
+          <button type="submit" class="bg-indigo-600 hover:bg-indigo-500 text-white px-6 py-2.5 rounded-xl text-xs font-bold shadow-lg shadow-indigo-600/30">
+            Save Settings
+          </button>
+        </form>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- LIVE EXECUTION MODAL / STATUS OVERLAY -->
+  <div id="live-exec-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+    <div class="bg-[#111827] border border-indigo-500/30 rounded-2xl max-w-2xl w-full p-6 shadow-2xl space-y-5 animate-in fade-in zoom-in-95 duration-200">
+      <div class="flex items-center justify-between border-b border-gray-800 pb-4">
+        <div class="flex items-center space-x-3">
+          <div class="w-9 h-9 rounded-xl bg-indigo-600/20 text-indigo-400 flex items-center justify-center font-bold">
+            <i data-lucide="loader-2" class="w-5 h-5 animate-spin" id="exec-spinner"></i>
+          </div>
+          <div>
+            <h3 class="font-bold text-base text-gray-100" id="exec-modal-title">Posting in Progress...</h3>
+            <p class="text-xs text-gray-400" id="exec-modal-subtitle">Auto multi-posting to selected Facebook groups</p>
+          </div>
+        </div>
+        <button onclick="closeExecModal()" class="text-gray-400 hover:text-gray-200" id="btn-close-exec-modal">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- Progress Bar -->
+      <div class="space-y-2">
+        <div class="flex justify-between text-xs text-gray-300">
+          <span>Overall Progress: <strong id="exec-progress-percent">0%</strong></span>
+          <span>Completed: <strong id="exec-completed-count">0 / 0</strong></span>
+        </div>
+        <div class="w-full bg-gray-950 rounded-full h-3 overflow-hidden border border-gray-800">
+          <div id="exec-progress-bar" class="bg-gradient-to-r from-indigo-500 to-emerald-400 h-full rounded-full transition-all duration-300" style="width: 0%"></div>
+        </div>
+      </div>
+
+      <!-- Current Target Card -->
+      <div class="bg-gray-800/50 p-3.5 rounded-xl border border-gray-700/60 flex items-center justify-between text-xs">
+        <div>
+          <span class="text-gray-400">Current Facebook Group:</span>
+          <div class="font-semibold text-gray-200 mt-0.5" id="exec-current-group">Preparing browser...</div>
+        </div>
+        <div class="text-right">
+          <span class="text-emerald-400 font-bold" id="exec-success-pill">0</span> Success &nbsp;|&nbsp;
+          <span class="text-red-400 font-bold" id="exec-failed-pill">0</span> Failed
+        </div>
+      </div>
+
+      <!-- Real-Time Console Feed -->
+      <div class="space-y-1">
+        <span class="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Live Execution Terminal</span>
+        <div id="exec-terminal-logs" class="bg-black/70 border border-gray-800/90 rounded-xl p-3 h-44 font-mono text-[11px] text-gray-300 overflow-y-auto space-y-1">
+          <!-- Logs injected in real-time -->
+        </div>
+      </div>
+
+      <div class="flex items-center justify-between pt-2">
+        <button id="btn-stop-execution" onclick="stopExecution()" class="bg-red-600/80 hover:bg-red-600 text-white px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition">
+          <i data-lucide="square" class="w-3.5 h-3.5"></i> Stop / Cancel Job
+        </button>
+        <button onclick="closeExecModal()" class="bg-gray-800 hover:bg-gray-700 text-gray-300 px-4 py-2 rounded-xl text-xs font-semibold">
+          Minimize to Background
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: ADD / EDIT BLOG POST -->
+  <div id="post-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+    <div class="bg-[#111827] border border-gray-800 rounded-2xl max-w-xl w-full p-6 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between border-b border-gray-800 pb-3">
+        <h3 class="font-bold text-base text-gray-100" id="post-modal-title">Add Blog Post</h3>
+        <button onclick="closePostModal()" class="text-gray-400 hover:text-gray-200"><i data-lucide="x" class="w-5 h-5"></i></button>
+      </div>
+
+      <form id="post-form" onsubmit="handleSavePost(event)" class="space-y-3.5">
+        <input type="hidden" id="post-id">
+        <div>
+          <label class="text-xs text-gray-300 block mb-1">Article Title *</label>
+          <input type="text" id="post-title" required class="w-full bg-gray-900 border border-gray-700 rounded-xl px-3 py-2 text-xs text-gray-200">
+        </div>
+
+        <div>
+          <label class="text-xs text-gray-300 block mb-1">Article Blog URL *</label>
+          <input type="url" id="post-url" required class="w-full bg-gray-900 border border-gray-700 rounded-xl px-3 py-2 text-xs text-gray-200">
+        </div>
+
+        <div>
+          <label class="text-xs text-gray-300 block mb-1">Excerpt / Summary</label>
+          <textarea id="post-excerpt" rows="2" class="w-full bg-gray-900 border border-gray-700 rounded-xl px-3 py-2 text-xs text-gray-200"></textarea>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="text-xs text-gray-300 block mb-1">Image URL (Optional)</label>
+            <input type="url" id="post-image-url" placeholder="https://..." class="w-full bg-gray-900 border border-gray-700 rounded-xl px-3 py-2 text-xs text-gray-200">
+          </div>
+          <div>
+            <label class="text-xs text-gray-300 block mb-1">Or Upload Image File</label>
+            <input type="file" id="post-image-file" name="imageFile" accept="image/*" class="w-full bg-gray-900 border border-gray-700 rounded-xl px-2 py-1.5 text-xs text-gray-400">
+          </div>
+        </div>
+
+        <!-- Video Posting Support -->
+        <div class="bg-indigo-950/20 border border-indigo-900/30 rounded-xl p-3 space-y-2">
+          <div class="flex items-center gap-1.5 text-xs font-semibold text-indigo-300">
+            <i data-lucide="video" class="w-4 h-4 text-purple-400"></i> Video Posting (MP4, WebM, MOV)
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="text-[11px] text-gray-400 block mb-1">Direct Video URL</label>
+              <input type="url" id="post-video-url" name="videoUrl" placeholder="https://.../video.mp4" class="w-full bg-gray-900 border border-gray-700 rounded-xl px-3 py-2 text-xs text-gray-200">
+            </div>
+            <div>
+              <label class="text-[11px] text-gray-400 block mb-1">Or Upload Video File</label>
+              <input type="file" id="post-video-file" name="videoFile" accept="video/mp4,video/webm,video/quicktime,video/*" class="w-full bg-gray-900 border border-gray-700 rounded-xl px-2 py-1.5 text-xs text-gray-400">
+            </div>
+          </div>
+          <p class="text-[10px] text-gray-400">Facebook automatically attaches and publishes your video file directly to the selected group.</p>
+        </div>
+
+        <div>
+          <label class="text-xs text-gray-300 block mb-1">Categories / Tags (comma separated)</label>
+          <input type="text" id="post-tags" placeholder="Tech, Marketing, AI" class="w-full bg-gray-900 border border-gray-700 rounded-xl px-3 py-2 text-xs text-gray-200">
+        </div>
+
+        <div class="flex justify-end gap-2 pt-3 border-t border-gray-800">
+          <button type="button" onclick="closePostModal()" class="bg-gray-800 hover:bg-gray-700 text-gray-300 px-4 py-2 rounded-xl text-xs font-semibold">Cancel</button>
+          <button type="submit" class="bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-2 rounded-xl text-xs font-semibold shadow-md">Save Post</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: ADD / EDIT FACEBOOK GROUP -->
+  <div id="group-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+    <div class="bg-[#111827] border border-gray-800 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between border-b border-gray-800 pb-3">
+        <h3 class="font-bold text-base text-gray-100" id="group-modal-title">Add Facebook Group / Page</h3>
+        <button onclick="closeGroupModal()" class="text-gray-400 hover:text-gray-200"><i data-lucide="x" class="w-5 h-5"></i></button>
+      </div>
+
+      <form id="group-form" onsubmit="handleSaveGroup(event)" class="space-y-3.5">
+        <input type="hidden" id="group-id">
+        <div>
+          <label class="text-xs text-gray-300 block mb-1">Group / Page Name *</label>
+          <input type="text" id="group-name" required placeholder="e.g. Digital Marketing Pros" class="w-full bg-gray-900 border border-gray-700 rounded-xl px-3 py-2 text-xs text-gray-200">
+        </div>
+
+        <div>
+          <label class="text-xs text-gray-300 block mb-1">Facebook URL *</label>
+          <input type="url" id="group-url" required placeholder="https://www.facebook.com/groups/yourgroup" class="w-full bg-gray-900 border border-gray-700 rounded-xl px-3 py-2 text-xs text-gray-200">
+        </div>
+
+        <div>
+          <label class="text-xs text-gray-300 block mb-1">Type</label>
+          <select id="group-type" class="w-full bg-gray-900 border border-gray-700 rounded-xl px-3 py-2 text-xs text-gray-200">
+            <option value="group">Facebook Group</option>
+            <option value="page">Facebook Page</option>
+            <option value="profile">Personal Timeline</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="text-xs text-gray-300 block mb-1">Tags (comma separated)</label>
+          <input type="text" id="group-tags" placeholder="Marketing, Tech, Creators" class="w-full bg-gray-900 border border-gray-700 rounded-xl px-3 py-2 text-xs text-gray-200">
+        </div>
+
+        <div class="flex justify-end gap-2 pt-3 border-t border-gray-800">
+          <button type="button" onclick="closeGroupModal()" class="bg-gray-800 hover:bg-gray-700 text-gray-300 px-4 py-2 rounded-xl text-xs font-semibold">Cancel</button>
+          <button type="submit" class="bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-2 rounded-xl text-xs font-semibold shadow-md">Save Group</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: BULK IMPORT GROUPS -->
+  <div id="bulk-group-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+    <div class="bg-[#111827] border border-gray-800 rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between border-b border-gray-800 pb-3">
+        <h3 class="font-bold text-base text-gray-100">Bulk Import Facebook Groups</h3>
+        <button onclick="closeBulkGroupModal()" class="text-gray-400 hover:text-gray-200"><i data-lucide="x" class="w-5 h-5"></i></button>
+      </div>
+
+      <p class="text-xs text-gray-400">Paste one group URL per line (or format: <code>Group Name, https://facebook.com/groups/...</code>).</p>
+      
+      <div>
+        <textarea id="bulk-group-text" rows="8" placeholder="https://www.facebook.com/groups/group1
+https://www.facebook.com/groups/group2
+Tech Enthusiasts, https://www.facebook.com/groups/techfans" class="w-full bg-gray-900 border border-gray-700 rounded-xl p-3 text-xs text-gray-200 font-mono"></textarea>
+      </div>
+
+      <div>
+        <label class="text-xs text-gray-300 block mb-1">Apply Tag to All (Optional)</label>
+        <input type="text" id="bulk-group-tag" placeholder="e.g. Marketing" class="w-full bg-gray-900 border border-gray-700 rounded-xl px-3 py-2 text-xs text-gray-200">
+      </div>
+
+      <div class="flex justify-end gap-2 pt-3 border-t border-gray-800">
+        <button type="button" onclick="closeBulkGroupModal()" class="bg-gray-800 hover:bg-gray-700 text-gray-300 px-4 py-2 rounded-xl text-xs font-semibold">Cancel</button>
+        <button onclick="handleBulkImportGroups()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-5 py-2 rounded-xl text-xs font-semibold shadow-md">Import All</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: ADD / EDIT RSS SOURCE -->
+  <div id="rss-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+    <div class="bg-[#111827] border border-gray-800 rounded-2xl max-w-xl w-full p-6 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between border-b border-gray-800 pb-3">
+        <h3 class="font-bold text-base text-gray-100">RSS / Atom Blog Sources</h3>
+        <button onclick="closeRssModal()" class="text-gray-400 hover:text-gray-200"><i data-lucide="x" class="w-5 h-5"></i></button>
+      </div>
+
+      <!-- Add New RSS Form -->
+      <form id="rss-form" onsubmit="handleSaveRss(event)" class="bg-gray-800/40 p-4 rounded-xl border border-gray-700/50 space-y-3">
+        <span class="text-xs font-bold text-gray-300 uppercase tracking-wider block">Add New Blog Feed</span>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="text-[11px] text-gray-400 block mb-1">Feed Name</label>
+            <input type="text" id="rss-name" required placeholder="My Blog Feed" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-2.5 py-1.5 text-xs text-gray-200">
+          </div>
+          <div>
+            <label class="text-[11px] text-gray-400 block mb-1">Refresh Every (Minutes)</label>
+            <input type="number" id="rss-refresh" value="60" min="10" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-2.5 py-1.5 text-xs text-gray-200">
+          </div>
+        </div>
+
+        <div>
+          <label class="text-[11px] text-gray-400 block mb-1">RSS / Atom Feed URL</label>
+          <input type="url" id="rss-url" required placeholder="https://example.com/feed/" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-2.5 py-1.5 text-xs text-gray-200">
+        </div>
+
+        <div class="flex items-center justify-between pt-1">
+          <div class="flex items-center space-x-2">
+            <input type="checkbox" id="rss-autopost" class="w-4 h-4 accent-indigo-600 rounded">
+            <label for="rss-autopost" class="text-xs text-gray-300">Auto-Post new articles immediately</label>
+          </div>
+          <button type="submit" class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-1.5 rounded-lg text-xs font-semibold">
+            Add Feed
+          </button>
+        </div>
+      </form>
+
+      <!-- Existing Feeds List -->
+      <div class="space-y-2">
+        <span class="text-xs font-bold text-gray-300 uppercase tracking-wider block">Connected RSS Feeds</span>
+        <div id="rss-list" class="max-h-52 overflow-y-auto space-y-2">
+          <!-- Rendered via app.js -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: ADD / EDIT CAMPAIGN -->
+  <div id="campaign-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+    <div class="bg-[#111827] border border-gray-800 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between border-b border-gray-800 pb-3">
+        <h3 class="font-bold text-base text-gray-100" id="campaign-modal-title">New Auto-Pilot Campaign</h3>
+        <button onclick="closeCampaignModal()" class="text-gray-400 hover:text-gray-200"><i data-lucide="x" class="w-5 h-5"></i></button>
+      </div>
+
+      <form id="campaign-form" onsubmit="handleSaveCampaign(event)" class="space-y-3.5">
+        <input type="hidden" id="campaign-id">
+        <div>
+          <label class="text-xs text-gray-300 block mb-1">Campaign Name *</label>
+          <input type="text" id="campaign-name" required placeholder="Daily Viral Blog Blaster" class="w-full bg-gray-900 border border-gray-700 rounded-xl px-3 py-2 text-xs text-gray-200">
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="text-xs text-gray-300 block mb-1">Post Selection Mode</label>
+            <select id="campaign-source" class="w-full bg-gray-900 border border-gray-700 rounded-xl px-3 py-2 text-xs text-gray-200">
+              <option value="roundrobin">Least Posted (Rotate)</option>
+              <option value="random">Random Article</option>
+              <option value="all">Recent New</option>
+            </select>
+          </div>
+          <div>
+            <label class="text-xs text-gray-300 block mb-1">Posts Per Run</label>
+            <input type="number" id="campaign-posts-per-run" value="1" min="1" max="5" class="w-full bg-gray-900 border border-gray-700 rounded-xl px-3 py-2 text-xs text-gray-200">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="text-xs text-gray-300 block mb-1">Run Every (Minutes)</label>
+            <input type="number" id="campaign-interval" value="120" min="15" class="w-full bg-gray-900 border border-gray-700 rounded-xl px-3 py-2 text-xs text-gray-200">
+          </div>
+          <div>
+            <label class="text-xs text-gray-300 block mb-1">Repeat Cycle</label>
+            <input type="number" id="campaign-repeat" value="1" min="1" max="10" class="w-full bg-gray-900 border border-gray-700 rounded-xl px-3 py-2 text-xs text-gray-200">
+          </div>
+        </div>
+
+        <div>
+          <label class="text-xs text-gray-300 block mb-1">Target Group Tag Filter (Optional)</label>
+          <input type="text" id="campaign-target-tags" placeholder="e.g. Marketing, Tech (leave blank for all)" class="w-full bg-gray-900 border border-gray-700 rounded-xl px-3 py-2 text-xs text-gray-200">
+        </div>
+
+        <div class="flex justify-end gap-2 pt-3 border-t border-gray-800">
+          <button type="button" onclick="closeCampaignModal()" class="bg-gray-800 hover:bg-gray-700 text-gray-300 px-4 py-2 rounded-xl text-xs font-semibold">Cancel</button>
+          <button type="submit" class="bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-2 rounded-xl text-xs font-semibold shadow-md">Start Campaign</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- TOAST NOTIFICATION CONTAINER -->
+  <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col space-y-2 pointer-events-none"></div>
+
+  <!-- Application Logic -->
+  <script src="/app.js"></script>
+</body>
+</html>

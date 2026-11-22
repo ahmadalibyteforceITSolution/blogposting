@@ -1,0 +1,1226 @@
+// FB AutoBlog Master - Client Application Logic
+
+let state = {
+  posts: [],
+  groups: [],
+  rssSources: [],
+  campaigns: [],
+  history: [],
+  settings: {},
+  stats: {},
+  activeTab: 'overview',
+  isLoggedIn: false,
+  selectedPost: null,
+  selectedGroupIds: new Set(),
+  activeTagFilter: 'ALL'
+};
+
+// --- Initialization ---
+document.addEventListener('DOMContentLoaded', () => {
+  if (window.lucide) lucide.createIcons();
+  initEventSource();
+  loadAllData();
+  checkFacebookLogin();
+
+  // Periodic status refresh
+  setInterval(() => {
+    fetchStats();
+  }, 10000);
+});
+
+// --- Server-Sent Events (SSE) for Real-Time Streaming ---
+function initEventSource() {
+  const evtSource = new EventSource('/api/events');
+
+  evtSource.addEventListener('status', (e) => {
+    const data = JSON.parse(e.data);
+    updateEngineStatus(data.isBusy);
+  });
+
+  evtSource.addEventListener('log', (e) => {
+    const data = JSON.parse(e.data);
+    appendLogToConsoles(data.message, data.type);
+  });
+
+  evtSource.addEventListener('job_start', (e) => {
+    const job = JSON.parse(e.data);
+    updateEngineStatus(true);
+    showExecModal(job);
+  });
+
+  evtSource.addEventListener('job_progress', (e) => {
+    const job = JSON.parse(e.data);
+    updateExecModalProgress(job);
+  });
+
+  evtSource.addEventListener('job_complete', (e) => {
+    const job = JSON.parse(e.data);
+    updateEngineStatus(false);
+    onJobFinished(job);
+    fetchStats();
+    loadHistory();
+    loadPosts();
+    loadGroups();
+  });
+
+  evtSource.onerror = () => {
+    // Reconnects automatically
+  };
+}
+
+function updateEngineStatus(isBusy) {
+  const pill = document.getElementById('engine-status-pill');
+  const dot = pill.querySelector('span');
+  const text = document.getElementById('engine-status-text');
+
+  if (isBusy) {
+    pill.classList.remove('hidden');
+    dot.className = 'w-2 h-2 rounded-full bg-amber-400 animate-ping';
+    text.textContent = 'Posting in Progress...';
+    text.className = 'text-amber-300 font-medium';
+  } else {
+    dot.className = 'w-2 h-2 rounded-full bg-emerald-400';
+    text.textContent = 'Engine Ready';
+    text.className = 'text-gray-300';
+  }
+}
+
+function appendLogToConsoles(msg, type = 'info') {
+  // Append to Overview console
+  const ovConsole = document.getElementById('overview-console-log');
+  if (ovConsole) {
+    const row = document.createElement('div');
+    row.className = getLogClass(type);
+    row.textContent = msg;
+    ovConsole.appendChild(row);
+    ovConsole.scrollTop = ovConsole.scrollHeight;
+  }
+
+  // Append to Live Modal terminal
+  const modalTerminal = document.getElementById('exec-terminal-logs');
+  if (modalTerminal) {
+    const row = document.createElement('div');
+    row.className = getLogClass(type);
+    row.textContent = msg;
+    modalTerminal.appendChild(row);
+    modalTerminal.scrollTop = modalTerminal.scrollHeight;
+  }
+}
+
+function getLogClass(type) {
+  switch (type) {
+    case 'success': return 'text-emerald-400 font-semibold';
+    case 'error': return 'text-red-400 font-semibold';
+    case 'warning': return 'text-amber-300';
+    default: return 'text-gray-300';
+  }
+}
+
+// --- Data Fetching ---
+async function loadAllData() {
+  await Promise.all([
+    fetchStats(),
+    loadPosts(),
+    loadGroups(),
+    loadRssSources(),
+    loadCampaigns(),
+    loadHistory(),
+    loadSettings()
+  ]);
+  renderGroupFilterTags();
+}
+
+async function fetchStats() {
+  try {
+    const res = await fetch('/api/stats');
+    const data = await res.json();
+    if (data.success) {
+      state.stats = data.stats;
+      document.getElementById('stat-posts').textContent = data.stats.totalPosts;
+      document.getElementById('stat-groups').textContent = `${data.stats.activeGroups} / ${data.stats.totalGroups}`;
+      document.getElementById('stat-success').textContent = data.stats.successfulPosts;
+      document.getElementById('stat-failed').textContent = data.stats.failedPosts;
+      document.getElementById('stat-campaigns').textContent = data.stats.activeCampaigns;
+      document.getElementById('stat-rss-sources').textContent = state.rssSources.length;
+      updateEngineStatus(data.stats.isBusy);
+    }
+  } catch (err) {
+    console.error('Failed to fetch stats:', err);
+  }
+}
+
+async function checkFacebookLogin(manual = false) {
+  const dot = document.getElementById('fb-status-dot');
+  const text = document.getElementById('fb-status-text');
+  const badge = document.getElementById('session-badge');
+
+  if (manual) {
+    text.textContent = 'Verifying Session...';
+    dot.className = 'w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse';
+  }
+
+  try {
+    const res = await fetch('/api/auth/status');
+    const data = await res.json();
+    state.isLoggedIn = data.loggedIn;
+
+    if (data.loggedIn) {
+      dot.className = 'w-2.5 h-2.5 rounded-full bg-emerald-400';
+      text.textContent = 'Facebook Connected';
+      text.className = 'text-emerald-300 font-medium';
+      badge.textContent = 'Connected & Active';
+      badge.className = 'px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
+      if (manual) showToast('Facebook session confirmed active!', 'success');
+    } else {
+      dot.className = 'w-2.5 h-2.5 rounded-full bg-red-400';
+      text.textContent = 'Not Connected';
+      text.className = 'text-gray-300';
+      badge.textContent = 'Not Logged In';
+      badge.className = 'px-2 py-0.5 rounded text-[11px] font-semibold bg-red-500/10 text-red-400 border border-red-500/20';
+      if (manual) showToast('Not logged into Facebook. Please click "Connect" to log in.', 'error');
+    }
+  } catch (e) {
+    dot.className = 'w-2.5 h-2.5 rounded-full bg-red-500';
+    text.textContent = 'Connection Error';
+  }
+}
+
+async function openLoginModal() {
+  try {
+    showToast('Opening Chrome browser for Facebook login...', 'info');
+    const res = await fetch('/api/auth/open-login', { method: 'POST' });
+    const data = await res.json();
+    if (data.success) {
+      showToast('Chrome opened. Complete login in the browser window!', 'success');
+    } else {
+      showToast(data.error || 'Failed to open login browser', 'error');
+    }
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+// --- Navigation Tabs ---
+function switchTab(tabId) {
+  state.activeTab = tabId;
+
+  document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(section => section.classList.add('hidden'));
+
+  const activeBtn = document.getElementById(`tab-btn-${tabId}`);
+  const activeSection = document.getElementById(`tab-${tabId}`);
+
+  if (activeBtn) activeBtn.classList.add('active');
+  if (activeSection) activeSection.classList.remove('hidden');
+
+  if (window.lucide) lucide.createIcons();
+}
+
+// --- BLOG POSTS CATALOG ---
+async function loadPosts() {
+  try {
+    const res = await fetch('/api/posts');
+    const data = await res.json();
+    if (data.success) {
+      state.posts = data.posts;
+      renderPostsGrid();
+      populateOneClickPostDropdown();
+    }
+  } catch (err) {
+    console.error('Error loading posts:', err);
+  }
+}
+
+function renderPostsGrid() {
+  const container = document.getElementById('posts-grid');
+  if (!container) return;
+
+  if (state.posts.length === 0) {
+    container.innerHTML = `
+      <div class="col-span-full bg-gray-900 border border-gray-800 rounded-2xl p-8 text-center space-y-3">
+        <i data-lucide="file-question" class="w-10 h-10 text-gray-500 mx-auto"></i>
+        <h4 class="text-sm font-semibold text-gray-300">No blog posts found</h4>
+        <p class="text-xs text-gray-500">Add an article manually, scrape a blog URL, or connect an RSS feed.</p>
+        <button onclick="openNewPostModal()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-xl text-xs font-semibold">
+          Add First Post
+        </button>
+      </div>
+    `;
+    if (window.lucide) lucide.createIcons();
+    return;
+  }
+
+  container.innerHTML = state.posts.map(post => `
+    <div class="bg-[#111827] border border-gray-800 rounded-2xl overflow-hidden shadow-lg flex flex-col justify-between hover:border-gray-700 transition">
+      <div>
+        ${post.imageUrl ? `<img src="${post.imageUrl}" alt="${escapeHtml(post.title)}" class="w-full h-36 object-cover">` : ''}
+        <div class="p-4 space-y-2">
+          <div class="flex items-center justify-between text-[11px] text-gray-400">
+            <span class="flex items-center gap-1">
+              <i data-lucide="send" class="w-3 h-3 text-indigo-400"></i> Posted ${post.timesPosted || 0} times
+            </span>
+            <span>${new Date(post.createdAt).toLocaleDateString()}</span>
+          </div>
+
+          <h3 class="font-bold text-sm text-gray-100 line-clamp-2">${escapeHtml(post.title)}</h3>
+          <p class="text-xs text-gray-400 line-clamp-3">${escapeHtml(post.excerpt || post.content || '')}</p>
+
+          ${post.tags && post.tags.length > 0 ? `
+            <div class="flex flex-wrap gap-1 pt-1">
+              ${post.tags.map(t => `<span class="bg-gray-800 text-gray-300 text-[10px] px-2 py-0.5 rounded-md">#${escapeHtml(t)}</span>`).join('')}
+            </div>
+          ` : ''}
+        </div>
+      </div>
+
+      <div class="p-4 border-t border-gray-800/80 flex items-center justify-between">
+        <a href="${post.url}" target="_blank" class="text-xs text-indigo-400 hover:underline flex items-center gap-1">
+          <i data-lucide="external-link" class="w-3.5 h-3.5"></i> Read Article
+        </a>
+        <div class="flex items-center space-x-1">
+          <button onclick="quickSelectForPost('${post.id}')" class="bg-indigo-600/20 text-indigo-300 hover:bg-indigo-600 hover:text-white px-2.5 py-1 rounded-lg text-xs font-medium transition flex items-center gap-1">
+            <i data-lucide="zap" class="w-3 h-3"></i> Post Now
+          </button>
+          <button onclick="deletePost('${post.id}')" class="text-gray-400 hover:text-red-400 p-1 rounded">
+            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+  `).join('');
+
+  if (window.lucide) lucide.createIcons();
+}
+
+function quickSelectForPost(postId) {
+  switchTab('oneclick');
+  const select = document.getElementById('oneclick-post-select');
+  if (select) {
+    select.value = postId;
+    handlePostSelectionChange();
+  }
+}
+
+function populateOneClickPostDropdown() {
+  const select = document.getElementById('oneclick-post-select');
+  if (!select) return;
+
+  const currentVal = select.value;
+  select.innerHTML = '<option value="">-- Choose a Blog Post to Publish --</option>' +
+    state.posts.map(p => `
+      <option value="${p.id}">${escapeHtml(p.title)} (${p.timesPosted || 0} posts)</option>
+    `).join('');
+
+  if (currentVal && state.posts.some(p => p.id === currentVal)) {
+    select.value = currentVal;
+  } else if (state.posts.length > 0) {
+    select.value = state.posts[0].id;
+  }
+  handlePostSelectionChange();
+}
+
+function handlePostSelectionChange() {
+  const select = document.getElementById('oneclick-post-select');
+  const postId = select?.value;
+  state.selectedPost = state.posts.find(p => p.id === postId) || null;
+
+  const previewText = document.getElementById('preview-text');
+  const previewLinkCard = document.getElementById('preview-link-card');
+  const previewImage = document.getElementById('preview-image');
+  const previewDomain = document.getElementById('preview-card-domain');
+  const previewTitle = document.getElementById('preview-card-title');
+  const previewDesc = document.getElementById('preview-card-desc');
+
+  if (!state.selectedPost) {
+    previewText.textContent = 'Select a post above to preview how it will appear when published to Facebook groups...';
+    previewLinkCard.classList.add('hidden');
+    return;
+  }
+
+  const p = state.selectedPost;
+  let text = `📌 ${p.title}\n\n${p.excerpt || ''}\n\n🔗 ${p.url}`;
+  if (p.tags && p.tags.length > 0) {
+    text += `\n` + p.tags.map(t => `#${t.replace(/\s+/g, '')}`).join(' ');
+  }
+  previewText.textContent = text;
+
+  try {
+    const urlObj = new URL(p.url);
+    previewDomain.textContent = urlObj.hostname.replace('www.', '').toUpperCase();
+  } catch (_) {
+    previewDomain.textContent = 'ARTICLE LINK';
+  }
+
+  previewTitle.textContent = p.title;
+  previewDesc.textContent = p.excerpt || p.title;
+
+  if (p.imageUrl) {
+    previewImage.src = p.imageUrl;
+    previewImage.classList.remove('hidden');
+  } else {
+    previewImage.classList.add('hidden');
+  }
+
+  previewLinkCard.classList.remove('hidden');
+}
+
+// Quick Scraper
+async function handleQuickScrape() {
+  const input = document.getElementById('quick-url-input');
+  const url = input?.value?.trim();
+  if (!url) return showToast('Please enter a blog post URL', 'error');
+
+  try {
+    showToast('Extracting article content...', 'info');
+    const res = await fetch('/api/posts/scrape-url', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url })
+    });
+    const data = await res.json();
+    if (data.success) {
+      // Save directly
+      const saveRes = await fetch('/api/posts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data.post)
+      });
+      const saveData = await saveRes.json();
+      if (saveData.success) {
+        showToast('Blog post created successfully!', 'success');
+        input.value = '';
+        await loadPosts();
+        quickSelectForPost(saveData.post.id);
+      }
+    } else {
+      showToast(data.error || 'Failed to extract URL', 'error');
+    }
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+async function scrapeAndCreatePost() {
+  const input = document.getElementById('blog-scrape-url');
+  const url = input?.value?.trim();
+  if (!url) return showToast('Please paste a blog URL', 'error');
+
+  try {
+    showToast('Scraping blog article...', 'info');
+    const res = await fetch('/api/posts/scrape-url', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url })
+    });
+    const data = await res.json();
+    if (data.success) {
+      const saveRes = await fetch('/api/posts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data.post)
+      });
+      const saveData = await saveRes.json();
+      if (saveData.success) {
+        showToast('Article imported successfully!', 'success');
+        input.value = '';
+        await loadPosts();
+      }
+    } else {
+      showToast(data.error || 'Failed to scrape URL', 'error');
+    }
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+function openNewPostModal() {
+  document.getElementById('post-modal-title').textContent = 'Add Blog Post';
+  document.getElementById('post-form').reset();
+  document.getElementById('post-id').value = '';
+  document.getElementById('post-modal').classList.remove('hidden');
+}
+
+function closePostModal() {
+  document.getElementById('post-modal').classList.add('hidden');
+}
+
+async function handleSavePost(e) {
+  e.preventDefault();
+  const form = document.getElementById('post-form');
+  const formData = new FormData(form);
+
+  const postId = document.getElementById('post-id').value;
+  const url = postId ? `/api/posts/${postId}` : '/api/posts';
+  const method = postId ? 'PUT' : 'POST';
+
+  try {
+    const res = await fetch(url, { method, body: formData });
+    const data = await res.json();
+    if (data.success) {
+      showToast('Post saved successfully!', 'success');
+      closePostModal();
+      await loadPosts();
+    } else {
+      showToast(data.error || 'Failed to save post', 'error');
+    }
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+async function deletePost(postId) {
+  if (!confirm('Are you sure you want to delete this blog post?')) return;
+  try {
+    await fetch(`/api/posts/${postId}`, { method: 'DELETE' });
+    showToast('Post deleted', 'info');
+    await loadPosts();
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+// --- FACEBOOK GROUPS MANAGEMENT ---
+async function loadGroups() {
+  try {
+    const res = await fetch('/api/groups');
+    const data = await res.json();
+    if (data.success) {
+      state.groups = data.groups;
+      renderGroupsTable();
+      renderOneClickGroupCheckboxes();
+      renderGroupFilterTags();
+    }
+  } catch (err) {
+    console.error('Error loading groups:', err);
+  }
+}
+
+function renderGroupsTable() {
+  const tbody = document.getElementById('groups-table-body');
+  if (!tbody) return;
+
+  if (state.groups.length === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="6" class="px-5 py-8 text-center text-gray-500 italic">
+          No Facebook groups added yet. Click "Add Target Group" or "Bulk Import URLs".
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  tbody.innerHTML = state.groups.map(g => `
+    <tr class="hover:bg-gray-800/40 transition">
+      <td class="px-5 py-3">
+        <div class="font-semibold text-gray-200">${escapeHtml(g.name)}</div>
+        <a href="${g.url}" target="_blank" class="text-[11px] text-gray-400 hover:text-indigo-400 truncate max-w-xs block font-mono">
+          ${escapeHtml(g.url)}
+        </a>
+      </td>
+      <td class="px-4 py-3 capitalize text-gray-400">
+        <span class="px-2 py-0.5 rounded text-[10px] bg-gray-800 border border-gray-700">${g.type || 'group'}</span>
+      </td>
+      <td class="px-4 py-3">
+        <div class="flex flex-wrap gap-1">
+          ${(g.tags || []).map(t => `<span class="bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 text-[10px] px-1.5 py-0.5 rounded">#${escapeHtml(t)}</span>`).join('')}
+        </div>
+      </td>
+      <td class="px-4 py-3 font-semibold text-gray-300">
+        ${g.totalPosts || 0}
+      </td>
+      <td class="px-4 py-3">
+        <button onclick="toggleGroupStatus('${g.id}', ${!g.enabled})" class="px-2 py-0.5 rounded text-[10px] font-semibold ${g.enabled ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-gray-800 text-gray-500'}">
+          ${g.enabled ? 'Active' : 'Disabled'}
+        </button>
+      </td>
+      <td class="px-5 py-3 text-right space-x-2">
+        <button onclick="deleteGroup('${g.id}')" class="text-gray-400 hover:text-red-400 p-1">
+          <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+        </button>
+      </td>
+    </tr>
+  `).join('');
+
+  if (window.lucide) lucide.createIcons();
+}
+
+function renderGroupFilterTags() {
+  const container = document.getElementById('group-filter-tags');
+  if (!container) return;
+
+  const allTags = new Set(['ALL']);
+  state.groups.forEach(g => {
+    (g.tags || []).forEach(t => allTags.add(t));
+  });
+
+  container.innerHTML = Array.from(allTags).map(tag => `
+    <button type="button" onclick="filterGroupsByTag('${tag}')" class="px-2 py-1 rounded-lg text-[10px] font-semibold transition ${state.activeTagFilter === tag ? 'bg-indigo-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'}">
+      ${tag === 'ALL' ? 'All Groups' : '#' + tag}
+    </button>
+  `).join('');
+}
+
+function filterGroupsByTag(tag) {
+  state.activeTagFilter = tag;
+  renderGroupFilterTags();
+  renderOneClickGroupCheckboxes();
+}
+
+function renderOneClickGroupCheckboxes() {
+  const container = document.getElementById('oneclick-group-list');
+  if (!container) return;
+
+  const filtered = state.groups.filter(g => {
+    if (!g.enabled) return false;
+    if (state.activeTagFilter === 'ALL') return true;
+    return (g.tags || []).includes(state.activeTagFilter);
+  });
+
+  if (filtered.length === 0) {
+    container.innerHTML = `<div class="text-xs text-gray-500 italic p-2">No groups match this filter.</div>`;
+    return;
+  }
+
+  container.innerHTML = filtered.map(g => `
+    <label class="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-800/60 cursor-pointer text-xs">
+      <input type="checkbox" value="${g.id}" ${state.selectedGroupIds.has(g.id) ? 'checked' : ''} onchange="toggleGroupSelection('${g.id}', this.checked)" class="w-4 h-4 accent-indigo-600 rounded">
+      <div class="flex-1 truncate">
+        <div class="font-semibold text-gray-200">${escapeHtml(g.name)}</div>
+        <div class="text-[10px] text-gray-500 truncate">${escapeHtml(g.url)}</div>
+      </div>
+      <span class="text-[10px] text-gray-400 bg-gray-800 px-1.5 py-0.5 rounded">${g.totalPosts || 0} posts</span>
+    </label>
+  `).join('');
+
+  updateSelectedGroupsCounter();
+}
+
+function toggleGroupSelection(groupId, isChecked) {
+  if (isChecked) {
+    state.selectedGroupIds.add(groupId);
+  } else {
+    state.selectedGroupIds.delete(groupId);
+  }
+  updateSelectedGroupsCounter();
+}
+
+function selectAllGroups(select) {
+  const filtered = state.groups.filter(g => {
+    if (!g.enabled) return false;
+    if (state.activeTagFilter === 'ALL') return true;
+    return (g.tags || []).includes(state.activeTagFilter);
+  });
+
+  filtered.forEach(g => {
+    if (select) {
+      state.selectedGroupIds.add(g.id);
+    } else {
+      state.selectedGroupIds.delete(g.id);
+    }
+  });
+
+  renderOneClickGroupCheckboxes();
+}
+
+function updateSelectedGroupsCounter() {
+  const counter = document.getElementById('selected-groups-count');
+  if (counter) {
+    counter.textContent = state.selectedGroupIds.size;
+  }
+}
+
+async function toggleGroupStatus(groupId, enabled) {
+  try {
+    await fetch(`/api/groups/${groupId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ enabled })
+    });
+    await loadGroups();
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+function openNewGroupModal() {
+  document.getElementById('group-modal-title').textContent = 'Add Facebook Group';
+  document.getElementById('group-form').reset();
+  document.getElementById('group-id').value = '';
+  document.getElementById('group-modal').classList.remove('hidden');
+}
+
+function closeGroupModal() {
+  document.getElementById('group-modal').classList.add('hidden');
+}
+
+async function handleSaveGroup(e) {
+  e.preventDefault();
+  const name = document.getElementById('group-name').value;
+  const url = document.getElementById('group-url').value;
+  const type = document.getElementById('group-type').value;
+  const tags = document.getElementById('group-tags').value;
+
+  try {
+    const res = await fetch('/api/groups', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, url, type, tags })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast('Facebook group added!', 'success');
+      closeGroupModal();
+      await loadGroups();
+    } else {
+      showToast(data.error || 'Failed to add group', 'error');
+    }
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+function openBulkGroupModal() {
+  document.getElementById('bulk-group-modal').classList.remove('hidden');
+}
+
+function closeBulkGroupModal() {
+  document.getElementById('bulk-group-modal').classList.add('hidden');
+}
+
+async function handleBulkImportGroups() {
+  const text = document.getElementById('bulk-group-text').value;
+  const defaultTag = document.getElementById('bulk-group-tag').value;
+  if (!text.trim()) return showToast('Please paste group URLs', 'error');
+
+  try {
+    const res = await fetch('/api/groups/bulk', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text, defaultTag })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast(`Imported ${data.count} groups successfully!`, 'success');
+      closeBulkGroupModal();
+      await loadGroups();
+    } else {
+      showToast(data.error || 'Import failed', 'error');
+    }
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+async function deleteGroup(groupId) {
+  if (!confirm('Remove this group from targets?')) return;
+  try {
+    await fetch(`/api/groups/${groupId}`, { method: 'DELETE' });
+    state.selectedGroupIds.delete(groupId);
+    await loadGroups();
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+// --- ONE-CLICK MULTI-POST DISPATCHER ---
+async function dispatchOneClickPost() {
+  const postSelect = document.getElementById('oneclick-post-select');
+  const postId = postSelect?.value;
+  if (!postId) {
+    return showToast('Please select a blog post to publish', 'error');
+  }
+
+  const selectedGroupIds = Array.from(state.selectedGroupIds);
+  if (selectedGroupIds.length === 0) {
+    return showToast('Please check at least one target Facebook group', 'error');
+  }
+
+  const repeatCount = Number(document.getElementById('oneclick-repeat-count')?.value || 1);
+  const delayMin = Number(document.getElementById('oneclick-delay-min')?.value || 45);
+  const delayMax = Number(document.getElementById('oneclick-delay-max')?.value || 90);
+  const customMessage = document.getElementById('oneclick-custom-message')?.value?.trim();
+
+  try {
+    const btn = document.getElementById('btn-dispatch-oneclick');
+    btn.disabled = true;
+
+    const res = await fetch('/api/poster/dispatch', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        postIds: [postId],
+        groupIds: selectedGroupIds,
+        repeatCount,
+        customDelayMin: delayMin,
+        customDelayMax: delayMax,
+        customMessage
+      })
+    });
+
+    const data = await res.json();
+    btn.disabled = false;
+
+    if (data.success) {
+      showToast('Multi-posting session started!', 'success');
+      showExecModal(data.job);
+    } else {
+      showToast(data.error || 'Failed to start session', 'error');
+    }
+  } catch (err) {
+    showToast(err.message, 'error');
+    document.getElementById('btn-dispatch-oneclick').disabled = false;
+  }
+}
+
+// --- LIVE EXECUTION MODAL CONTROLLER ---
+function showExecModal(job) {
+  const modal = document.getElementById('live-exec-modal');
+  modal.classList.remove('hidden');
+
+  document.getElementById('exec-spinner').classList.remove('hidden');
+  document.getElementById('exec-modal-title').textContent = 'Posting in Progress...';
+  document.getElementById('btn-stop-execution').classList.remove('hidden');
+
+  updateExecModalProgress(job);
+}
+
+function updateExecModalProgress(job) {
+  if (!job) return;
+  document.getElementById('exec-progress-percent').textContent = `${job.progressPercent || 0}%`;
+  document.getElementById('exec-completed-count').textContent = `${job.completedOperations || 0} / ${job.totalOperations || 0}`;
+  document.getElementById('exec-progress-bar').style.width = `${job.progressPercent || 0}%`;
+
+  document.getElementById('exec-current-group').textContent = job.currentGroup || 'Preparing browser...';
+  document.getElementById('exec-success-pill').textContent = job.successCount || 0;
+  document.getElementById('exec-failed-pill').textContent = job.failedCount || 0;
+}
+
+function onJobFinished(job) {
+  document.getElementById('exec-spinner').classList.add('hidden');
+  document.getElementById('btn-stop-execution').classList.add('hidden');
+
+  if (job.status === 'COMPLETED') {
+    document.getElementById('exec-modal-title').textContent = '🎉 Job Completed Successfully!';
+    document.getElementById('exec-current-group').textContent = 'All target groups published.';
+    showToast('Multi-posting session finished!', 'success');
+  } else if (job.status === 'CANCELLED') {
+    document.getElementById('exec-modal-title').textContent = '🛑 Job Cancelled';
+    document.getElementById('exec-current-group').textContent = 'Stopped by user.';
+    showToast('Posting job cancelled', 'warning');
+  } else {
+    document.getElementById('exec-modal-title').textContent = '⚠️ Job Error';
+    document.getElementById('exec-current-group').textContent = job.error || 'Error occurred';
+    showToast(job.error || 'Posting job encountered an error', 'error');
+  }
+}
+
+function closeExecModal() {
+  document.getElementById('live-exec-modal').classList.add('hidden');
+}
+
+async function stopExecution() {
+  if (!confirm('Are you sure you want to cancel the active posting job?')) return;
+  try {
+    await fetch('/api/poster/cancel', { method: 'POST' });
+    showToast('Stopping posting session...', 'info');
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+function clearDashboardLogs() {
+  const ovConsole = document.getElementById('overview-console-log');
+  if (ovConsole) ovConsole.innerHTML = '<div class="text-gray-500 italic">Logs cleared.</div>';
+}
+
+// --- RSS FEEDS MODAL ---
+async function loadRssSources() {
+  try {
+    const res = await fetch('/api/rss');
+    const data = await res.json();
+    if (data.success) {
+      state.rssSources = data.sources;
+      renderRssList();
+    }
+  } catch (err) {
+    console.error('Error loading RSS:', err);
+  }
+}
+
+function renderRssList() {
+  const container = document.getElementById('rss-list');
+  if (!container) return;
+
+  if (state.rssSources.length === 0) {
+    container.innerHTML = `<div class="text-xs text-gray-500 italic">No RSS feeds connected yet.</div>`;
+    return;
+  }
+
+  container.innerHTML = state.rssSources.map(r => `
+    <div class="bg-gray-900 border border-gray-700/60 rounded-xl p-3 flex items-center justify-between text-xs">
+      <div>
+        <div class="font-semibold text-gray-200">${escapeHtml(r.name)}</div>
+        <div class="text-[10px] text-gray-500 font-mono truncate max-w-xs">${escapeHtml(r.url)}</div>
+        <div class="text-[10px] text-indigo-400 mt-0.5">
+          Refresh: Every ${r.refreshMinutes}m ${r.autoPost ? '• 🚀 Auto-Post ON' : ''}
+        </div>
+      </div>
+      <div class="flex items-center space-x-1">
+        <button onclick="fetchRssNow('${r.id}')" class="bg-indigo-600/20 text-indigo-300 hover:bg-indigo-600 hover:text-white px-2.5 py-1 rounded-lg text-xs font-medium transition">
+          Fetch
+        </button>
+        <button onclick="deleteRss('${r.id}')" class="text-gray-400 hover:text-red-400 p-1">
+          <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+        </button>
+      </div>
+    </div>
+  `).join('');
+
+  if (window.lucide) lucide.createIcons();
+}
+
+function openRssModal() {
+  document.getElementById('rss-modal').classList.remove('hidden');
+}
+
+function closeRssModal() {
+  document.getElementById('rss-modal').classList.add('hidden');
+}
+
+async function handleSaveRss(e) {
+  e.preventDefault();
+  const name = document.getElementById('rss-name').value;
+  const url = document.getElementById('rss-url').value;
+  const refreshMinutes = document.getElementById('rss-refresh').value;
+  const autoPost = document.getElementById('rss-autopost').checked;
+
+  try {
+    const res = await fetch('/api/rss', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, url, refreshMinutes, autoPost })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast('RSS Feed added!', 'success');
+      document.getElementById('rss-form').reset();
+      await loadRssSources();
+      // Auto-trigger initial fetch
+      fetchRssNow(data.source.id);
+    }
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+async function fetchRssNow(sourceId) {
+  try {
+    showToast('Fetching latest articles from feed...', 'info');
+    const res = await fetch(`/api/rss/${sourceId}/fetch`, { method: 'POST' });
+    const data = await res.json();
+    if (data.success) {
+      showToast(`Imported ${data.result.addedCount} new articles!`, 'success');
+      await loadPosts();
+    } else {
+      showToast(data.error || 'Failed to fetch RSS', 'error');
+    }
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+async function deleteRss(sourceId) {
+  if (!confirm('Remove this RSS source?')) return;
+  try {
+    await fetch(`/api/rss/${sourceId}`, { method: 'DELETE' });
+    await loadRssSources();
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+// --- CAMPAIGNS (AUTO-PILOT) ---
+async function loadCampaigns() {
+  try {
+    const res = await fetch('/api/campaigns');
+    const data = await res.json();
+    if (data.success) {
+      state.campaigns = data.campaigns;
+      renderCampaignsGrid();
+    }
+  } catch (err) {
+    console.error('Error loading campaigns:', err);
+  }
+}
+
+function renderCampaignsGrid() {
+  const container = document.getElementById('campaigns-grid');
+  if (!container) return;
+
+  if (state.campaigns.length === 0) {
+    container.innerHTML = `
+      <div class="col-span-full bg-gray-900 border border-gray-800 rounded-2xl p-8 text-center space-y-3">
+        <i data-lucide="clock" class="w-10 h-10 text-gray-500 mx-auto"></i>
+        <h4 class="text-sm font-semibold text-gray-300">No Auto-Pilot Campaigns</h4>
+        <p class="text-xs text-gray-500">Create recurring schedules to automatically post blog articles multiple times.</p>
+        <button onclick="openNewCampaignModal()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-xl text-xs font-semibold">
+          Create Campaign
+        </button>
+      </div>
+    `;
+    if (window.lucide) lucide.createIcons();
+    return;
+  }
+
+  container.innerHTML = state.campaigns.map(c => `
+    <div class="bg-[#111827] border border-gray-800 rounded-2xl p-5 shadow-lg flex flex-col justify-between space-y-4 hover:border-gray-700 transition">
+      <div>
+        <div class="flex items-center justify-between">
+          <span class="px-2 py-0.5 rounded text-[10px] font-semibold ${c.active ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-gray-800 text-gray-500'}">
+            ${c.active ? 'Active 24/7' : 'Paused'}
+          </span>
+          <button onclick="deleteCampaign('${c.id}')" class="text-gray-400 hover:text-red-400 p-1">
+            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+          </button>
+        </div>
+
+        <h3 class="font-bold text-sm text-gray-100 mt-2">${escapeHtml(c.name)}</h3>
+
+        <div class="space-y-1.5 mt-3 text-xs text-gray-400">
+          <div class="flex justify-between">
+            <span>Interval:</span>
+            <span class="text-gray-200 font-semibold">Every ${c.intervalMinutes} mins</span>
+          </div>
+          <div class="flex justify-between">
+            <span>Repetition:</span>
+            <span class="text-gray-200 font-semibold">${c.repeatCount}x cycle</span>
+          </div>
+          <div class="flex justify-between">
+            <span>Selection:</span>
+            <span class="text-gray-200 capitalize font-semibold">${c.postSource}</span>
+          </div>
+          <div class="flex justify-between">
+            <span>Last Run:</span>
+            <span class="text-gray-400 font-mono text-[11px]">${c.lastRunAt ? new Date(c.lastRunAt).toLocaleTimeString() : 'Never'}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="pt-3 border-t border-gray-800/80">
+        <button onclick="toggleCampaignActive('${c.id}', ${!c.active})" class="w-full py-2 rounded-xl text-xs font-semibold ${c.active ? 'bg-gray-800 text-gray-300 hover:bg-gray-700' : 'bg-emerald-600 text-white hover:bg-emerald-500'}">
+          ${c.active ? 'Pause Campaign' : 'Resume Campaign'}
+        </button>
+      </div>
+    </div>
+  `).join('');
+
+  if (window.lucide) lucide.createIcons();
+}
+
+function openNewCampaignModal() {
+  document.getElementById('campaign-form').reset();
+  document.getElementById('campaign-id').value = '';
+  document.getElementById('campaign-modal').classList.remove('hidden');
+}
+
+function closeCampaignModal() {
+  document.getElementById('campaign-modal').classList.add('hidden');
+}
+
+async function handleSaveCampaign(e) {
+  e.preventDefault();
+  const name = document.getElementById('campaign-name').value;
+  const postSource = document.getElementById('campaign-source').value;
+  const postsPerRun = document.getElementById('campaign-posts-per-run').value;
+  const intervalMinutes = document.getElementById('campaign-interval').value;
+  const repeatCount = document.getElementById('campaign-repeat').value;
+  const targetGroupTags = document.getElementById('campaign-target-tags').value;
+
+  try {
+    const res = await fetch('/api/campaigns', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, postSource, postsPerRun, intervalMinutes, repeatCount, targetGroupTags })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast('Campaign created and activated!', 'success');
+      closeCampaignModal();
+      await loadCampaigns();
+    }
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+async function toggleCampaignActive(id, active) {
+  try {
+    await fetch(`/api/campaigns/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ active })
+    });
+    await loadCampaigns();
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+async function deleteCampaign(id) {
+  if (!confirm('Delete this automated campaign?')) return;
+  try {
+    await fetch(`/api/campaigns/${id}`, { method: 'DELETE' });
+    await loadCampaigns();
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+// --- LOGS & HISTORY ---
+async function loadHistory() {
+  try {
+    const res = await fetch('/api/history');
+    const data = await res.json();
+    if (data.success) {
+      state.history = data.history;
+      renderHistoryTable();
+    }
+  } catch (err) {
+    console.error('Error loading history:', err);
+  }
+}
+
+function renderHistoryTable() {
+  const tbody = document.getElementById('history-table-body');
+  if (!tbody) return;
+
+  if (state.history.length === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="5" class="px-5 py-8 text-center text-gray-500 italic">
+          No posting logs yet. Run a 1-click post or start a campaign to see live results.
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  tbody.innerHTML = state.history.map(h => `
+    <tr class="hover:bg-gray-800/40 transition">
+      <td class="px-5 py-3 text-gray-400 font-mono text-[11px] whitespace-nowrap">
+        ${new Date(h.timestamp).toLocaleTimeString()}
+      </td>
+      <td class="px-4 py-3 font-semibold text-gray-200">
+        ${escapeHtml(h.groupName)}
+      </td>
+      <td class="px-4 py-3 text-gray-300 truncate max-w-xs">
+        ${escapeHtml(h.postTitle)}
+      </td>
+      <td class="px-4 py-3">
+        <span class="px-2 py-0.5 rounded text-[10px] font-semibold ${h.status === 'SUCCESS' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'}">
+          ${h.status}
+        </span>
+      </td>
+      <td class="px-5 py-3 text-gray-400 text-[11px]">
+        ${h.errorDetails ? `<span class="text-red-400">${escapeHtml(h.errorDetails)}</span>` : '<span class="text-emerald-400">Published</span>'}
+      </td>
+    </tr>
+  `).join('');
+}
+
+async function clearHistoryLogs() {
+  if (!confirm('Clear all execution history logs?')) return;
+  try {
+    await fetch('/api/history', { method: 'DELETE' });
+    showToast('Logs cleared', 'info');
+    await loadHistory();
+    fetchStats();
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+// --- SETTINGS ---
+async function loadSettings() {
+  try {
+    const res = await fetch('/api/settings');
+    const data = await res.json();
+    if (data.success) {
+      state.settings = data.settings;
+      document.getElementById('setting-min-delay').value = data.settings.minDelaySeconds || 45;
+      document.getElementById('setting-max-delay').value = data.settings.maxDelaySeconds || 90;
+      document.getElementById('setting-chrome-path').value = data.settings.chromePath || '';
+      document.getElementById('setting-headless').checked = !!data.settings.headless;
+      document.getElementById('setting-spintax-enabled').checked = !!data.settings.spintaxEnabled;
+      document.getElementById('setting-spintax-prefix').value = data.settings.spintaxPrefix || '';
+      document.getElementById('setting-spintax-suffix').value = data.settings.spintaxSuffix || '';
+    }
+  } catch (err) {
+    console.error('Error loading settings:', err);
+  }
+}
+
+async function handleSaveSettings(e) {
+  e.preventDefault();
+  const settings = {
+    minDelaySeconds: Number(document.getElementById('setting-min-delay').value),
+    maxDelaySeconds: Number(document.getElementById('setting-max-delay').value),
+    chromePath: document.getElementById('setting-chrome-path').value.trim(),
+    headless: document.getElementById('setting-headless').checked,
+    spintaxEnabled: document.getElementById('setting-spintax-enabled').checked,
+    spintaxPrefix: document.getElementById('setting-spintax-prefix').value,
+    spintaxSuffix: document.getElementById('setting-spintax-suffix').value
+  };
+
+  try {
+    const res = await fetch('/api/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(settings)
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast('Settings saved successfully!', 'success');
+      state.settings = data.settings;
+    }
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+// --- UTILITIES ---
+function showToast(message, type = 'info') {
+  const container = document.getElementById('toast-container');
+  if (!container) return;
+
+  const toast = document.createElement('div');
+  toast.className = `toast px-4 py-2.5 rounded-xl text-xs font-semibold text-white shadow-xl flex items-center space-x-2 pointer-events-auto border ${getToastColor(type)}`;
+  toast.innerHTML = `<span>${escapeHtml(message)}</span>`;
+
+  container.appendChild(toast);
+  setTimeout(() => {
+    toast.style.opacity = '0';
+    toast.style.transform = 'translateY(10px)';
+    setTimeout(() => toast.remove(), 300);
+  }, 4000);
+}
+
+function getToastColor(type) {
+  switch (type) {
+    case 'success': return 'bg-emerald-600/95 border-emerald-500';
+    case 'error': return 'bg-red-600/95 border-red-500';
+    case 'warning': return 'bg-amber-600/95 border-amber-500';
+    default: return 'bg-indigo-600/95 border-indigo-500';
+  }
+}
+
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
