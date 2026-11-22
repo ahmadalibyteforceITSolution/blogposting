@@ -47,23 +47,59 @@ const defaultData = {
   groups: [
     {
       id: 'demo-group-1',
-      name: 'Blogging & Content Creators Hub',
-      url: 'https://www.facebook.com/groups/bloggingcreatorshub',
+      name: 'Blogging & Digital Marketing Mastermind USA',
+      url: 'https://www.facebook.com/groups/bloggingmarketingusa',
       type: 'group',
-      tags: ['Blogging', 'Marketing'],
+      country: 'United States',
+      countryCode: 'US',
+      niche: 'Blogging & SEO',
+      members: '128,400 members',
+      memberCount: 128400,
+      postApproval: 'NO_APPROVAL_REQUIRED',
+      postApprovalLabel: 'Direct Post (No Approval)',
+      linkPermission: 'ALLOWED',
+      linkPermissionLabel: 'Links Allowed (Confirmed)',
+      joinStatus: 'JOINED',
+      activity: {
+        postsLast7Days: 145,
+        postsLast30Days: 610,
+        postsPerDay: 21,
+        engagementLevel: 'HIGH',
+        rankScore: 96
+      },
+      tags: ['Blogging', 'Marketing', 'US'],
       enabled: true,
-      totalPosts: 0,
-      lastPostedAt: null
+      totalPosts: 3,
+      lastPostedAt: null,
+      verifiedAt: new Date().toISOString()
     },
     {
       id: 'demo-group-2',
-      name: 'Digital Marketers & Growth Hackers',
-      url: 'https://www.facebook.com/groups/digitalmarketinggrowthhackers',
+      name: 'Worldwide Bloggers, SEO Traffic & Content Syndication',
+      url: 'https://www.facebook.com/groups/worldwidebloggersseotraffic',
       type: 'group',
-      tags: ['Marketing', 'Tech'],
+      country: 'Worldwide',
+      countryCode: 'ALL',
+      niche: 'Blogging & SEO',
+      members: '310,000 members',
+      memberCount: 310000,
+      postApproval: 'NO_APPROVAL_REQUIRED',
+      postApprovalLabel: 'Direct Post (No Approval)',
+      linkPermission: 'ALLOWED',
+      linkPermissionLabel: 'Links Allowed (Confirmed)',
+      joinStatus: 'JOINED',
+      activity: {
+        postsLast7Days: 390,
+        postsLast30Days: 1680,
+        postsPerDay: 56,
+        engagementLevel: 'HIGH',
+        rankScore: 99
+      },
+      tags: ['SEO', 'Traffic', 'Global'],
       enabled: true,
-      totalPosts: 0,
-      lastPostedAt: null
+      totalPosts: 5,
+      lastPostedAt: null,
+      verifiedAt: new Date().toISOString()
     }
   ],
   campaigns: [
@@ -80,6 +116,8 @@ const defaultData = {
       lastRunAt: null
     }
   ],
+  tracking_links: [],
+  traffic_clicks: [],
   history: [],
   settings: {
     chromePath: DEFAULT_CHROME_PATH,
@@ -89,7 +127,9 @@ const defaultData = {
     dailyPostLimit: 40,
     spintaxEnabled: true,
     spintaxPrefix: "{Check out|Read our latest article|Brand new blog post|Must-read}: ",
-    spintaxSuffix: "\n\n{Let us know your thoughts below!|What do you think?|Read full article on the link above!}"
+    spintaxSuffix: "\n\n{Let us know your thoughts below!|What do you think?|Read full article on the link above!}",
+    ga4MeasurementId: "",
+    ga4ApiSecret: ""
   }
 };
 
@@ -249,6 +289,28 @@ class Database {
       sqlDb.clearHistory().catch(() => {});
     }
     return true;
+  }
+
+  deduplicateGroups() {
+    const originalCount = (this.data.groups || []).length;
+    const seenUrls = new Set();
+    const uniqueGroups = [];
+
+    for (const group of (this.data.groups || [])) {
+      const normalized = (group.url || '').toLowerCase().trim().replace(/\/$/, '');
+      if (normalized && !seenUrls.has(normalized)) {
+        seenUrls.add(normalized);
+        uniqueGroups.push(group);
+      }
+    }
+
+    this.data.groups = uniqueGroups;
+    this.save();
+    return {
+      originalCount,
+      removedCount: originalCount - uniqueGroups.length,
+      remainingCount: uniqueGroups.length
+    };
   }
 }
 

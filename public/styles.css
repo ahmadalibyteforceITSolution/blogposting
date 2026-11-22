@@ -154,3 +154,17 @@ body {
     opacity: 1;
   }
 }
+
+/* Saved filter sub-tab pills */
+.saved-filter-pill {
+  transition: all 0.15s ease;
+  border: 1px solid transparent;
+}
+.saved-filter-pill:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+.saved-filter-pill.active {
+  background: #4F46E5 !important;
+  color: #FFFFFF !important;
+}
+

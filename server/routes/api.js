@@ -7,6 +7,9 @@ const config = require('../config');
 const { fbAutomation } = require('../automation/facebook');
 const posterEngine = require('../automation/posterEngine');
 const rssService = require('../services/rssService');
+const { groupFinderService } = require('../services/groupFinderService');
+const { groupVerifier } = require('../services/groupVerifier');
+const { trafficTracker } = require('../services/trafficTracker');
 
 // Multer storage for image uploads
 const storage = multer.diskStorage({
@@ -47,20 +50,34 @@ router.get('/stats', async (req, res) => {
     const groups = db.get('groups');
     const campaigns = db.get('campaigns');
     const history = db.get('history');
+    const trackingLinks = db.get('tracking_links') || [];
+    const trafficClicks = db.get('traffic_clicks') || [];
 
-    const successCount = history.filter(h => h.status === 'SUCCESS').length;
+    const successCount = history.filter(h => h.status === 'SUCCESS' || h.status === 'MANUAL_POSTED').length;
     const failCount = history.filter(h => h.status === 'FAILED').length;
+    const manualCount = history.filter(h => h.status === 'MANUAL_POSTED').length;
+    const verifiedNoApprovalCount = groups.filter(g => g.postApproval === 'NO_APPROVAL_REQUIRED').length;
+    const joinedGroupsCount = groups.filter(g => g.joinStatus === 'JOINED').length;
+
+    const totalClicks = trafficClicks.length;
+    const uniqueVisitors = trafficClicks.filter(c => c.isUniqueVisitor).length;
 
     res.json({
       success: true,
       stats: {
         totalPosts: posts.length,
         totalGroups: groups.length,
+        verifiedNoApprovalGroups: verifiedNoApprovalCount,
+        joinedGroups: joinedGroupsCount,
         activeGroups: groups.filter(g => g.enabled).length,
         activeCampaigns: campaigns.filter(c => c.active).length,
         totalHistory: history.length,
         successfulPosts: successCount,
         failedPosts: failCount,
+        manualPosts: manualCount,
+        totalClicks,
+        uniqueVisitors,
+        totalTrackingLinks: trackingLinks.length,
         isBusy: posterEngine.getStatus().isBusy
       }
     });
@@ -326,6 +343,156 @@ router.delete('/groups/:id', (req, res) => {
   res.json({ success: true });
 });
 
+// --- Worldwide & Country-Wise Facebook Group Finder ---
+router.get('/groups/find', (req, res) => {
+  try {
+    const {
+      keyword = '',
+      country = 'ALL',
+      noAdminApprovalOnly = 'true', // HIGHEST PRIORITY
+      linkPermissionOnly = 'false',
+      minActivity = 'ALL',
+      sort = 'rank'
+    } = req.query;
+
+    const result = groupFinderService.findGroups({
+      keyword,
+      country,
+      noAdminApprovalOnly: noAdminApprovalOnly === 'true' || noAdminApprovalOnly === true,
+      linkPermissionOnly: linkPermissionOnly === 'true' || linkPermissionOnly === true,
+      minActivity,
+      sort
+    });
+
+    res.json({
+      success: true,
+      ...result,
+      countries: groupFinderService.getSupportedCountries()
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/groups/countries', (req, res) => {
+  res.json({
+    success: true,
+    countries: groupFinderService.getSupportedCountries()
+  });
+});
+
+// Re-check / live verify group post approval status & link permissions
+router.post('/groups/verify', async (req, res) => {
+  try {
+    const { url, runLiveBrowser = false, groupId } = req.body;
+    if (!url) return res.status(400).json({ error: 'Group URL is required' });
+
+    const verification = await groupVerifier.verifyGroup(url, { runLiveBrowser: !!runLiveBrowser });
+
+    // If groupId provided or url exists in saved groups, update it
+    const groups = db.get('groups');
+    const matched = groupId 
+      ? groups.find(g => g.id === groupId) 
+      : groups.find(g => (g.url || '').toLowerCase().replace(/\/$/, '') === url.toLowerCase().replace(/\/$/, ''));
+
+    if (matched) {
+      db.updateItem('groups', matched.id, {
+        postApproval: verification.postApproval,
+        postApprovalLabel: verification.postApprovalLabel,
+        linkPermission: verification.linkPermission,
+        linkPermissionLabel: verification.linkPermissionLabel,
+        activity: verification.activity,
+        verifiedAt: verification.verifiedAt
+      });
+    }
+
+    res.json({ success: true, verification });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Save batch of discovered groups
+router.post('/groups/save-batch', (req, res) => {
+  try {
+    const { groups = [] } = req.body;
+    if (!Array.isArray(groups) || groups.length === 0) {
+      return res.status(400).json({ error: 'No groups provided to save' });
+    }
+
+    const currentSaved = db.get('groups');
+    const savedUrls = new Set(currentSaved.map(g => (g.url || '').toLowerCase().replace(/\/$/, '')));
+    const added = [];
+
+    for (const g of groups) {
+      const normalized = (g.url || '').toLowerCase().replace(/\/$/, '');
+      if (normalized && !savedUrls.has(normalized)) {
+        savedUrls.add(normalized);
+        const newGroup = {
+          id: 'grp-saved-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5),
+          name: g.name || 'Facebook Group',
+          url: g.url,
+          type: g.type || 'group',
+          country: g.country || 'Worldwide',
+          countryCode: g.countryCode || 'ALL',
+          niche: g.niche || 'General',
+          members: g.members || '10,000 members',
+          memberCount: g.memberCount || 10000,
+          postApproval: g.postApproval || 'NO_APPROVAL_REQUIRED',
+          postApprovalLabel: g.postApprovalLabel || 'Direct Post (No Approval)',
+          linkPermission: g.linkPermission || 'ALLOWED',
+          linkPermissionLabel: g.linkPermissionLabel || 'Links Allowed (Confirmed)',
+          joinStatus: g.joinStatus || 'NOT_JOINED',
+          activity: g.activity || {
+            postsLast7Days: 50,
+            postsLast30Days: 200,
+            postsPerDay: 7,
+            engagementLevel: 'MODERATE',
+            rankScore: 80
+          },
+          tags: g.niche ? [g.niche.replace(/\s+/g, '')] : ['Saved'],
+          enabled: true,
+          totalPosts: 0,
+          lastPostedAt: null,
+          verifiedAt: g.verifiedAt || new Date().toISOString()
+        };
+        db.addItem('groups', newGroup);
+        added.push(newGroup);
+      }
+    }
+
+    res.json({ success: true, addedCount: added.length, groups: added });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Deduplicate saved groups
+router.post('/groups/deduplicate', (req, res) => {
+  try {
+    const result = db.deduplicateGroups();
+    res.json({ success: true, ...result });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Update join status ('JOINED', 'PENDING', 'NOT_JOINED')
+router.put('/groups/:id/status', (req, res) => {
+  try {
+    const { joinStatus } = req.body;
+    const valid = ['JOINED', 'PENDING', 'NOT_JOINED'];
+    if (!valid.includes(joinStatus)) {
+      return res.status(400).json({ error: 'Invalid joinStatus. Allowed: ' + valid.join(', ') });
+    }
+    const updated = db.updateItem('groups', req.params.id, { joinStatus });
+    if (!updated) return res.status(404).json({ error: 'Group not found' });
+    res.json({ success: true, group: updated });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // --- RSS Feeds Management ---
 router.get('/rss', (req, res) => {
   res.json({ success: true, sources: db.get('rss_sources') });
@@ -488,6 +655,122 @@ router.post('/settings', (req, res) => {
   try {
     const updated = db.updateSettings(req.body);
     res.json({ success: true, settings: updated });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// --- Website Traffic Tracking & GA4 Endpoints ---
+router.post('/traffic/generate-links', (req, res) => {
+  try {
+    const destUrl = req.body.destinationUrl || req.body.targetUrl;
+    if (!destUrl) {
+      return res.status(400).json({ error: 'destinationUrl or targetUrl is required' });
+    }
+
+    let targetGroups = req.body.groups;
+    if ((!targetGroups || targetGroups.length === 0) && Array.isArray(req.body.groupIds)) {
+      const allGroups = db.get('groups');
+      targetGroups = allGroups.filter(g => req.body.groupIds.includes(g.id));
+    }
+
+    if (!Array.isArray(targetGroups) || targetGroups.length === 0) {
+      return res.status(400).json({ error: 'groups or groupIds array is required' });
+    }
+
+    const links = trafficTracker.generateTrackingLinks({
+      destinationUrl: destUrl,
+      postId: req.body.postId,
+      groups: targetGroups
+    });
+
+    const host = req.get('host') || 'localhost:3000';
+    const protocol = req.protocol || 'http';
+    const enriched = links.map(l => ({
+      ...l,
+      trackingId: l.id,
+      trackingUrl: `${protocol}://${host}/t/${l.id}`
+    }));
+
+    res.json({ success: true, links: enriched });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/traffic/stats', (req, res) => {
+  try {
+    const analytics = trafficTracker.getTrafficAnalytics();
+    res.json({ success: true, analytics, ...analytics });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Simulate a live click for instant demo/testing
+router.post('/traffic/simulate-click', async (req, res) => {
+  try {
+    const { trackingId, countryCode = 'US', ip = '198.51.100.25' } = req.body;
+    let targetLink = null;
+    const links = db.get('tracking_links') || [];
+
+    if (trackingId) {
+      targetLink = links.find(l => l.id === trackingId);
+    } else if (links.length > 0) {
+      targetLink = links[0];
+    } else {
+      // Create a default demo tracking link first
+      const demoLinks = trafficTracker.generateTrackingLinks({
+        destinationUrl: 'https://example.com/blog/boost-traffic',
+        postId: 'demo-post-1',
+        groups: [{ id: 'demo-group-1', name: 'Blogging & Digital Marketing Mastermind USA', url: 'https://facebook.com/groups/bloggingmarketingusa', country: 'United States', countryCode: 'US' }]
+      });
+      targetLink = demoLinks[0];
+    }
+
+    const mockReq = {
+      headers: {
+        'cf-ipcountry': countryCode,
+        'x-forwarded-for': ip,
+        'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
+        'referer': 'https://www.facebook.com/'
+      },
+      socket: { remoteAddress: ip }
+    };
+
+    const recordResult = await trafficTracker.recordClick(targetLink.id, mockReq);
+    res.json({ success: true, message: 'Click simulated successfully!', ...recordResult });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Record manual post completion in history
+router.post('/poster/manual-record', (req, res) => {
+  try {
+    const { groupId, groupName, groupUrl, postTitle, postUrl, trackingUrl } = req.body;
+    
+    // Increment group counter
+    const groups = db.get('groups');
+    const matched = groups.find(g => g.id === groupId || g.url === groupUrl);
+    if (matched) {
+      db.updateItem('groups', matched.id, {
+        totalPosts: (matched.totalPosts || 0) + 1,
+        lastPostedAt: new Date().toISOString()
+      });
+    }
+
+    // Add history entry
+    const logItem = db.addLog({
+      group_name: groupName || (matched ? matched.name : 'Facebook Group'),
+      group_url: groupUrl || (matched ? matched.url : ''),
+      post_title: postTitle || 'Manual Blog Post',
+      post_url: postUrl || trackingUrl || '',
+      status: 'MANUAL_POSTED',
+      error_details: null
+    });
+
+    res.json({ success: true, log: logItem });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

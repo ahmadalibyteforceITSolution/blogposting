@@ -116,8 +116,34 @@ class PosterEngine {
             let postSuccess = false;
             let errorMsg = null;
 
+            // Prepare customized post payload with unique tracking link per group
+            let postPayload = { ...post };
+            if (post.url) {
+              try {
+                const { trafficTracker } = require('../services/trafficTracker');
+                const config = require('../config');
+                const existingLinks = db.get('tracking_links') || [];
+                let link = existingLinks.find(l => l.groupId === group.id && l.postId === post.id);
+                if (!link) {
+                  const generated = trafficTracker.generateTrackingLinks({
+                    destinationUrl: post.url,
+                    postId: post.id,
+                    groups: [group]
+                  });
+                  link = generated[0];
+                }
+                if (link) {
+                  const port = config.PORT || 3000;
+                  const trackingUrl = `http://localhost:${port}/t/${link.id}`;
+                  postPayload.url = trackingUrl;
+                  postPayload.originalUrl = post.url;
+                  postPayload.trackingUrl = trackingUrl;
+                }
+              } catch (_) {}
+            }
+
             try {
-              await fbAutomation.postToTarget(group.url, post, {
+              await fbAutomation.postToTarget(group.url, postPayload, {
                 customMessage: options.customMessage,
                 onProgress: (statusMsg) => {
                   this.log(`[${group.name}] ${statusMsg}`, 'info');
@@ -126,7 +152,7 @@ class PosterEngine {
 
               postSuccess = true;
               this.currentJob.successCount++;
-              this.log(`✅ Successfully posted to ${group.name}`, 'success');
+              this.log(`✅ Successfully posted to ${group.name} with unique tracking link`, 'success');
 
               // Update stats
               db.updateItem('posts', post.id, {

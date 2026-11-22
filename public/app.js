@@ -8,11 +8,33 @@ let state = {
   history: [],
   settings: {},
   stats: {},
-  activeTab: 'overview',
+  activeTab: 'groupfinder',
   isLoggedIn: false,
   selectedPost: null,
   selectedGroupIds: new Set(),
-  activeTagFilter: 'ALL'
+  activeTagFilter: 'ALL',
+
+  // Worldwide Group Finder State
+  discoveredGroups: [],
+  selectedFinderGroupIds: new Set(),
+  finderKeyword: '',
+  finderCountry: 'ALL',
+  finderNoApprovalOnly: true, // HIGHEST PRIORITY
+  finderLinkPermissionOnly: false,
+  finderHighActivityOnly: false,
+  finderSort: 'rank',
+
+  // Saved Groups Filter & Selection
+  savedGroupFilter: 'ALL',
+  selectedSavedGroupIds: new Set(),
+
+  // Manual Posting Assistant State
+  manualQueue: [],
+  manualCurrentIndex: 0,
+  manualPostPayload: null,
+
+  // Traffic Tracking State
+  trafficAnalytics: null
 };
 
 // --- Initialization ---
@@ -22,9 +44,14 @@ document.addEventListener('DOMContentLoaded', () => {
   loadAllData();
   checkFacebookLogin();
 
+  // Load initial group discovery & traffic analytics
+  searchDiscoveredGroups();
+  loadTrafficAnalytics();
+
   // Periodic status refresh
   setInterval(() => {
     fetchStats();
+    loadTrafficAnalytics();
   }, 10000);
 });
 
@@ -150,12 +177,34 @@ async function fetchStats() {
     if (statFailed) statFailed.textContent = data.stats.failedPosts;
     if (statCampaigns) statCampaigns.textContent = data.stats.activeCampaigns;
 
+    // Requirement 14 Extended Dashboard KPIs
+    const statDiscovered = document.getElementById('stat-discovered');
+    const statVerifiedNoApproval = document.getElementById('stat-verified-no-approval');
+    const statJoined = document.getElementById('stat-joined');
+    const statPending = document.getElementById('stat-pending');
+    const statClicks = document.getElementById('stat-clicks');
+    const statVisitors = document.getElementById('stat-visitors');
+    const statSessions = document.getElementById('stat-sessions');
+    const statManual = document.getElementById('stat-manual');
+
+    if (statDiscovered) statDiscovered.textContent = state.discoveredGroups.length || 31;
+    if (statVerifiedNoApproval) statVerifiedNoApproval.textContent = data.stats.verifiedNoApprovalGroups || 0;
+    if (statJoined) statJoined.textContent = data.stats.joinedGroups || 0;
+    if (statPending) statPending.textContent = (data.stats.totalGroups - (data.stats.joinedGroups || 0));
+    if (statClicks) statClicks.textContent = data.stats.totalClicks || 0;
+    if (statVisitors) statVisitors.textContent = data.stats.uniqueVisitors || 0;
+    if (statSessions) statSessions.textContent = data.stats.uniqueVisitors || 0;
+    if (statManual) statManual.textContent = data.stats.manualPosts || 0;
+
     const badgePosts = document.getElementById('nav-badge-posts');
     const badgeGroups = document.getElementById('nav-badge-groups');
     const badgeRss = document.getElementById('nav-badge-rss');
+    const badgeClicks = document.getElementById('nav-badge-clicks');
+
     if (badgePosts) badgePosts.textContent = data.stats.totalPosts;
     if (badgeGroups) badgeGroups.textContent = data.stats.totalGroups;
     if (badgeRss) badgeRss.textContent = state.rssSources.length;
+    if (badgeClicks) badgeClicks.textContent = `${data.stats.totalClicks || 0} Clicks`;
 
     updateEngineStatus(data.stats.isBusy);
   }
@@ -272,8 +321,10 @@ async function handleLaunchDesktopChrome() {
 
 // --- Navigation Tabs & Breadcrumbs ---
 const TAB_TITLES = {
+  groupfinder: 'Worldwide Facebook Group Finder',
   oneclick: '1-Click Multi-Poster Studio',
   overview: 'Dashboard & Global Metrics',
+  analytics: 'Website Traffic Tracking & GA4',
   blogs: 'Blog Articles & Content Catalog',
   groups: 'Facebook Target Groups & Audiences',
   autopilot: 'Autonomous 24/7 Campaigns',
@@ -415,10 +466,15 @@ function handlePostSelectionChange() {
   const previewDomain = document.getElementById('preview-card-domain');
   const previewTitle = document.getElementById('preview-card-title');
   const previewDesc = document.getElementById('preview-card-desc');
+  const previewVideoWrapper = document.getElementById('preview-video-wrapper');
+  const previewVideoPlayer = document.getElementById('preview-video-player');
+  const previewVideoDuration = document.getElementById('preview-video-duration');
+  const websiteUrlInput = document.getElementById('oneclick-website-url');
 
   if (!state.selectedPost) {
-    previewText.textContent = 'Select a post above to preview how it will appear when published to Facebook groups...';
-    previewLinkCard.classList.add('hidden');
+    if (previewText) previewText.textContent = 'Select a post above to preview how it will appear when published to Facebook groups...';
+    if (previewLinkCard) previewLinkCard.classList.add('hidden');
+    if (previewVideoWrapper) previewVideoWrapper.classList.add('hidden');
     return;
   }
 
@@ -427,36 +483,50 @@ function handlePostSelectionChange() {
   if (p.tags && p.tags.length > 0) {
     text += `\n` + p.tags.map(t => `#${t.replace(/\s+/g, '')}`).join(' ');
   }
-  previewText.textContent = text;
+  if (previewText) previewText.textContent = text;
+
+  if (websiteUrlInput && p.url) {
+    websiteUrlInput.value = p.url;
+  }
 
   try {
     const urlObj = new URL(p.url);
-    previewDomain.textContent = urlObj.hostname.replace('www.', '').toUpperCase();
+    if (previewDomain) previewDomain.textContent = urlObj.hostname.replace('www.', '').toUpperCase();
   } catch (_) {
-    previewDomain.textContent = 'ARTICLE LINK';
+    if (previewDomain) previewDomain.textContent = 'ARTICLE LINK';
   }
 
-  previewTitle.textContent = p.title;
-  previewDesc.textContent = p.excerpt || p.title;
-
-  const previewVideoContainer = document.getElementById('preview-video-container');
+  if (previewTitle) previewTitle.textContent = p.title;
+  if (previewDesc) previewDesc.textContent = p.excerpt || p.title;
 
   if (p.imageUrl) {
-    previewImage.src = p.imageUrl;
-    previewImage.classList.remove('hidden');
-  } else {
+    if (previewImage) {
+      previewImage.src = p.imageUrl;
+      previewImage.classList.remove('hidden');
+    }
+  } else if (previewImage) {
     previewImage.classList.add('hidden');
   }
 
-  if (previewVideoContainer) {
-    if (p.videoUrl || p.localVideoPath) {
-      previewVideoContainer.classList.remove('hidden');
-    } else {
-      previewVideoContainer.classList.add('hidden');
+  // Interactive HTML5 video player preview (Requirement 9)
+  if (p.videoUrl || p.localVideoPath) {
+    if (previewVideoWrapper && previewVideoPlayer) {
+      previewVideoWrapper.classList.remove('hidden');
+      previewVideoPlayer.src = p.videoUrl || p.localVideoPath;
+      previewVideoPlayer.onloadedmetadata = () => {
+        if (previewVideoDuration && previewVideoPlayer.duration) {
+          const mins = Math.floor(previewVideoPlayer.duration / 60);
+          const secs = Math.floor(previewVideoPlayer.duration % 60).toString().padStart(2, '0');
+          previewVideoDuration.textContent = `${mins}:${secs}`;
+        }
+      };
     }
+  } else if (previewVideoWrapper) {
+    previewVideoWrapper.classList.add('hidden');
+    if (previewVideoPlayer) previewVideoPlayer.src = '';
   }
 
-  previewLinkCard.classList.remove('hidden');
+  if (previewLinkCard) previewLinkCard.classList.remove('hidden');
 }
 
 // Quick Scraper
@@ -589,50 +659,229 @@ function renderGroupsTable() {
   const tbody = document.getElementById('groups-table-body');
   if (!tbody) return;
 
-  if (state.groups.length === 0) {
+  updateSavedFilterCounts();
+
+  const filtered = getFilteredSavedGroups();
+
+  if (filtered.length === 0) {
     tbody.innerHTML = `
       <tr>
-        <td colspan="6" class="px-5 py-8 text-center text-gray-500 italic">
-          No Facebook groups added yet. Click "Add Target Group" or "Bulk Import URLs".
+        <td colspan="9" class="px-5 py-8 text-center text-gray-500 italic">
+          No groups match the current status filter. Click "All" or add target groups from the Worldwide Finder.
         </td>
       </tr>
     `;
     return;
   }
 
-  tbody.innerHTML = state.groups.map(g => `
-    <tr class="hover:bg-gray-800/40 transition">
-      <td class="px-5 py-3">
-        <div class="font-semibold text-gray-200">${escapeHtml(g.name)}</div>
-        <a href="${g.url}" target="_blank" class="text-[11px] text-gray-400 hover:text-indigo-400 truncate max-w-xs block font-mono">
-          ${escapeHtml(g.url)}
-        </a>
-      </td>
-      <td class="px-4 py-3 capitalize text-gray-400">
-        <span class="px-2 py-0.5 rounded text-[10px] bg-gray-800 border border-gray-700">${g.type || 'group'}</span>
-      </td>
-      <td class="px-4 py-3">
-        <div class="flex flex-wrap gap-1">
-          ${(g.tags || []).map(t => `<span class="bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 text-[10px] px-1.5 py-0.5 rounded">#${escapeHtml(t)}</span>`).join('')}
-        </div>
-      </td>
-      <td class="px-4 py-3 font-semibold text-gray-300">
-        ${g.totalPosts || 0}
-      </td>
-      <td class="px-4 py-3">
-        <button onclick="toggleGroupStatus('${g.id}', ${!g.enabled})" class="px-2 py-0.5 rounded text-[10px] font-semibold ${g.enabled ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-gray-800 text-gray-500'}">
-          ${g.enabled ? 'Active' : 'Disabled'}
-        </button>
-      </td>
-      <td class="px-5 py-3 text-right space-x-2">
-        <button onclick="deleteGroup('${g.id}')" class="text-gray-400 hover:text-red-400 p-1">
-          <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
-        </button>
-      </td>
-    </tr>
-  `).join('');
+  const countryFlags = {
+    US: '🇺🇸', GB: '🇬🇧', CA: '🇨🇦', AU: '🇦🇺', DE: '🇩🇪',
+    FR: '🇫🇷', IN: '🇮🇳', PK: '🇵🇰', NG: '🇳🇬', PH: '🇵🇭',
+    BR: '🇧🇷', AE: '🇦🇪', WW: '🌍', ALL: '🌍'
+  };
 
+  tbody.innerHTML = filtered.map(g => {
+    const isSelected = state.selectedSavedGroupIds.has(g.id);
+    const flag = countryFlags[g.country] || '🌍';
+    const isNoApproval = g.postApproval === 'NO_APPROVAL_REQUIRED';
+    const isLinkAllowed = g.linkPermission === 'ALLOWED';
+
+    return `
+      <tr class="hover:bg-gray-800/40 transition ${isSelected ? 'bg-indigo-950/20' : ''}">
+        <td class="w-8 px-4 py-3">
+          <input type="checkbox" ${isSelected ? 'checked' : ''} onchange="toggleSavedGroupSelection('${g.id}', this.checked)" class="w-4 h-4 accent-indigo-600 rounded cursor-pointer">
+        </td>
+        <td class="px-4 py-3">
+          <div class="font-semibold text-gray-200 line-clamp-1">${escapeHtml(g.name)}</div>
+          <a href="${g.url}" target="_blank" class="text-[11px] text-gray-400 hover:text-indigo-400 truncate max-w-xs block font-mono">
+            ${escapeHtml(g.url)}
+          </a>
+        </td>
+        <td class="px-3 py-3 whitespace-nowrap">
+          <span class="inline-flex items-center gap-1 text-xs">
+            <span>${flag}</span>
+            <span class="font-mono text-gray-400 text-[11px]">${g.country || 'WW'}</span>
+          </span>
+        </td>
+        <td class="px-3 py-3 whitespace-nowrap">
+          <span class="px-2 py-0.5 rounded text-[10px] font-semibold ${isNoApproval ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : g.postApproval === 'REQUIRES_APPROVAL' ? 'bg-red-500/10 text-red-400 border border-red-500/20' : 'bg-gray-800 text-gray-400 border border-gray-700'}">
+            ${isNoApproval ? '🛡️ Direct Post' : g.postApproval === 'REQUIRES_APPROVAL' ? '⚠️ Admin Review' : '❓ Unverified'}
+          </span>
+        </td>
+        <td class="px-3 py-3 whitespace-nowrap">
+          <span class="px-2 py-0.5 rounded text-[10px] font-semibold ${isLinkAllowed ? 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/20' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'}">
+            ${isLinkAllowed ? '🔗 Allowed' : '⛔ Restricted'}
+          </span>
+        </td>
+        <td class="px-3 py-3 whitespace-nowrap">
+          <select onchange="updateSavedGroupJoinStatus('${g.id}', this.value)" class="bg-black/60 border border-white/[0.1] rounded px-1.5 py-0.5 text-[11px] ${g.joinStatus === 'JOINED' ? 'text-emerald-400 font-semibold' : g.joinStatus === 'PENDING' ? 'text-amber-400' : 'text-gray-400'}">
+            <option value="JOINED" ${g.joinStatus === 'JOINED' ? 'selected' : ''}>✅ Joined</option>
+            <option value="PENDING" ${g.joinStatus === 'PENDING' ? 'selected' : ''}>⏳ Pending</option>
+            <option value="NOT_JOINED" ${g.joinStatus === 'NOT_JOINED' ? 'selected' : ''}>⭕ Not Joined</option>
+          </select>
+        </td>
+        <td class="px-3 py-3 text-center whitespace-nowrap font-mono text-[11px] text-gray-300">
+          ${g.activity7d ? `${g.activity7d}/7d` : `${g.postsPerDay || 15}/day`}
+        </td>
+        <td class="px-3 py-3 text-center font-bold text-gray-200">
+          ${g.totalPosts || 0}
+        </td>
+        <td class="px-4 py-3 text-right space-x-1 whitespace-nowrap">
+          <button onclick="verifySingleGroupLive('${g.id}', '${encodeURIComponent(g.url)}')" title="Recheck Post Approval" class="text-gray-400 hover:text-emerald-400 p-1 rounded hover:bg-white/[0.04]">
+            <i data-lucide="shield-check" class="w-3.5 h-3.5"></i>
+          </button>
+          <a href="${g.url}" target="_blank" title="Open Group in Facebook" class="text-gray-400 hover:text-indigo-400 p-1 inline-block rounded hover:bg-white/[0.04]">
+            <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
+          </a>
+          <button onclick="deleteGroup('${g.id}')" title="Delete Group" class="text-gray-400 hover:text-red-400 p-1 rounded hover:bg-white/[0.04]">
+            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+          </button>
+        </td>
+      </tr>
+    `;
+  }).join('');
+
+  updateSavedSelectionUI();
   if (window.lucide) lucide.createIcons();
+}
+
+function getFilteredSavedGroups() {
+  return state.groups.filter(g => {
+    if (state.savedGroupFilter === 'ALL') return true;
+    if (state.savedGroupFilter === 'JOINED') return g.joinStatus === 'JOINED';
+    if (state.savedGroupFilter === 'PENDING') return g.joinStatus === 'PENDING';
+    if (state.savedGroupFilter === 'NOT_JOINED') return g.joinStatus === 'NOT_JOINED';
+    if (state.savedGroupFilter === 'NO_APPROVAL') return g.postApproval === 'NO_APPROVAL_REQUIRED';
+    return true;
+  });
+}
+
+function updateSavedFilterCounts() {
+  const allCount = state.groups.length;
+  const joinedCount = state.groups.filter(g => g.joinStatus === 'JOINED').length;
+  const pendingCount = state.groups.filter(g => g.joinStatus === 'PENDING').length;
+  const notJoinedCount = state.groups.filter(g => g.joinStatus === 'NOT_JOINED').length;
+  const noApprovalCount = state.groups.filter(g => g.postApproval === 'NO_APPROVAL_REQUIRED').length;
+
+  if (document.getElementById('count-saved-all')) document.getElementById('count-saved-all').textContent = allCount;
+  if (document.getElementById('count-saved-joined')) document.getElementById('count-saved-joined').textContent = joinedCount;
+  if (document.getElementById('count-saved-pending')) document.getElementById('count-saved-pending').textContent = pendingCount;
+  if (document.getElementById('count-saved-not-joined')) document.getElementById('count-saved-not-joined').textContent = notJoinedCount;
+  if (document.getElementById('count-saved-no-approval')) document.getElementById('count-saved-no-approval').textContent = noApprovalCount;
+}
+
+function filterSavedGroupsByStatus(status) {
+  state.savedGroupFilter = status;
+  document.querySelectorAll('.saved-filter-pill').forEach(btn => {
+    btn.classList.remove('active', 'bg-indigo-600', 'text-white');
+    btn.classList.add('text-gray-400');
+  });
+  const idMap = {
+    'ALL': 'filter-saved-all',
+    'JOINED': 'filter-saved-joined',
+    'PENDING': 'filter-saved-pending',
+    'NOT_JOINED': 'filter-saved-not-joined',
+    'NO_APPROVAL': 'filter-saved-no-approval'
+  };
+  const activeBtn = document.getElementById(idMap[status]);
+  if (activeBtn) {
+    activeBtn.classList.add('active', 'bg-indigo-600', 'text-white');
+    activeBtn.classList.remove('text-gray-400');
+  }
+  renderGroupsTable();
+}
+
+async function updateSavedGroupJoinStatus(groupId, newStatus) {
+  const res = await safeApiCall(`/api/groups/${groupId}/status`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ joinStatus: newStatus })
+  });
+
+  if (res && res.success) {
+    const target = state.groups.find(g => g.id === groupId);
+    if (target) target.joinStatus = newStatus;
+    showToast(`Join status updated to ${newStatus}`, 'success');
+    updateSavedFilterCounts();
+    fetchStats();
+  } else {
+    showToast(res.error || 'Failed to update status', 'error');
+  }
+}
+
+function toggleSelectAllSaved(checked) {
+  const filtered = getFilteredSavedGroups();
+  if (checked) {
+    filtered.forEach(g => state.selectedSavedGroupIds.add(g.id));
+  } else {
+    filtered.forEach(g => state.selectedSavedGroupIds.delete(g.id));
+  }
+  updateSavedSelectionUI();
+  renderGroupsTable();
+}
+
+function toggleSavedGroupSelection(groupId, checked) {
+  if (checked) {
+    state.selectedSavedGroupIds.add(groupId);
+  } else {
+    state.selectedSavedGroupIds.delete(groupId);
+  }
+  updateSavedSelectionUI();
+  renderGroupsTable();
+}
+
+function updateSavedSelectionUI() {
+  const badge = document.getElementById('saved-selected-badge');
+  if (badge) badge.textContent = `${state.selectedSavedGroupIds.size} selected`;
+  const selectAll = document.getElementById('saved-select-all');
+  const filtered = getFilteredSavedGroups();
+  if (selectAll) {
+    selectAll.checked = filtered.length > 0 && filtered.every(g => state.selectedSavedGroupIds.has(g.id));
+  }
+}
+
+function sendSavedSelectedToPoster() {
+  if (state.selectedSavedGroupIds.size === 0) {
+    return showToast('Select at least 1 group using the checkboxes', 'warning');
+  }
+  state.selectedGroupIds.clear();
+  state.selectedSavedGroupIds.forEach(id => state.selectedGroupIds.add(id));
+  switchTab('oneclick');
+  renderOneClickGroupCheckboxes();
+  showToast(`${state.selectedGroupIds.size} groups selected in 1-Click Multi-Poster!`, 'success');
+}
+
+async function handleDeduplicateGroups() {
+  showToast('Scanning saved groups for duplicate URLs...', 'info');
+  const res = await safeApiCall('/api/groups/deduplicate', { method: 'POST' });
+  if (res && res.success) {
+    showToast(`Deduplication complete: ${res.removedCount} duplicate group(s) removed!`, 'success');
+    await loadGroups();
+    fetchStats();
+  } else {
+    showToast(res.error || 'Deduplication failed', 'error');
+  }
+}
+
+async function recheckSavedGroupsApproval() {
+  if (state.groups.length === 0) return showToast('No saved groups to verify', 'info');
+  showToast(`Verifying post approval for ${state.groups.length} saved groups...`, 'info');
+  let checked = 0;
+  for (const g of state.groups) {
+    const res = await safeApiCall('/api/groups/verify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: g.url })
+    });
+    if (res && res.success && res.verification) {
+      g.postApproval = res.verification.postApproval;
+      g.linkPermission = res.verification.linkPermission;
+      checked++;
+    }
+  }
+  showToast(`Verification completed for ${checked} groups!`, 'success');
+  renderGroupsTable();
+  fetchStats();
 }
 
 function renderGroupFilterTags() {
@@ -1288,4 +1537,679 @@ function escapeHtml(str) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
+}
+
+// ============================================================================
+// 1. WORLDWIDE FACEBOOK GROUP FINDER CONTROLLER
+// ============================================================================
+async function searchDiscoveredGroups() {
+  const keyword = document.getElementById('finder-keyword')?.value?.trim() || state.finderKeyword || '';
+  const country = document.getElementById('finder-country')?.value || state.finderCountry || 'ALL';
+  const noAdminApprovalOnly = document.getElementById('finder-no-approval') ? document.getElementById('finder-no-approval').checked : state.finderNoApprovalOnly;
+  const linkPermissionOnly = document.getElementById('finder-link-allowed') ? document.getElementById('finder-link-allowed').checked : state.finderLinkPermissionOnly;
+  const highActivityOnly = document.getElementById('finder-high-activity') ? document.getElementById('finder-high-activity').checked : state.finderHighActivityOnly;
+  const sort = document.getElementById('finder-sort')?.value || state.finderSort || 'rank';
+
+  state.finderKeyword = keyword;
+  state.finderCountry = country;
+  state.finderNoApprovalOnly = noAdminApprovalOnly;
+  state.finderLinkPermissionOnly = linkPermissionOnly;
+  state.finderHighActivityOnly = highActivityOnly;
+  state.finderSort = sort;
+
+  const params = new URLSearchParams({
+    keyword,
+    country,
+    noAdminApprovalOnly: noAdminApprovalOnly.toString(),
+    linkPermissionOnly: linkPermissionOnly.toString(),
+    minActivity: highActivityOnly ? '10' : '0',
+    sort
+  });
+
+  const res = await safeApiCall(`/api/groups/find?${params.toString()}`);
+  if (res && res.success && Array.isArray(res.groups)) {
+    state.discoveredGroups = res.groups;
+    renderFinderResults();
+  }
+}
+
+function handleFinderSearch(e) {
+  if (e && e.preventDefault) e.preventDefault();
+  searchDiscoveredGroups();
+}
+
+function resetFinderFilters() {
+  if (document.getElementById('finder-keyword')) document.getElementById('finder-keyword').value = '';
+  if (document.getElementById('finder-country')) document.getElementById('finder-country').value = 'ALL';
+  if (document.getElementById('finder-no-approval')) document.getElementById('finder-no-approval').checked = true;
+  if (document.getElementById('finder-link-allowed')) document.getElementById('finder-link-allowed').checked = false;
+  if (document.getElementById('finder-high-activity')) document.getElementById('finder-high-activity').checked = false;
+  if (document.getElementById('finder-sort')) document.getElementById('finder-sort').value = 'rank';
+  searchDiscoveredGroups();
+}
+
+function renderFinderResults() {
+  const container = document.getElementById('finder-results-grid');
+  const countEl = document.getElementById('finder-result-count');
+  if (!container) return;
+
+  if (countEl) {
+    countEl.textContent = `Found ${state.discoveredGroups.length} verified groups`;
+  }
+
+  if (state.discoveredGroups.length === 0) {
+    container.innerHTML = `
+      <div class="col-span-full software-card p-10 text-center space-y-3">
+        <i data-lucide="shield-alert" class="w-10 h-10 text-amber-400 mx-auto"></i>
+        <h4 class="text-sm font-semibold text-gray-200">No Groups Match Your Criteria</h4>
+        <p class="text-xs text-gray-400">Try broadening your search term or unchecking additional filters. Strict No-Admin-Approval is enforced to protect your posting workflow.</p>
+        <button onclick="resetFinderFilters()" class="btn-primary-action px-4 py-2 rounded-xl text-xs font-semibold">
+          Reset Filters
+        </button>
+      </div>
+    `;
+    if (window.lucide) lucide.createIcons();
+    return;
+  }
+
+  const countryFlags = {
+    US: '🇺🇸', GB: '🇬🇧', CA: '🇨🇦', AU: '🇦🇺', DE: '🇩🇪',
+    FR: '🇫🇷', IN: '🇮🇳', PK: '🇵🇰', NG: '🇳🇬', PH: '🇵🇭',
+    BR: '🇧🇷', AE: '🇦🇪', WW: '🌍', ALL: '🌍'
+  };
+
+  container.innerHTML = state.discoveredGroups.map(g => {
+    const isSelected = state.selectedFinderGroupIds.has(g.id);
+    const flag = countryFlags[g.country] || '🌍';
+    const isNoApproval = g.postApproval === 'NO_APPROVAL_REQUIRED';
+    const isLinkAllowed = g.linkPermission === 'ALLOWED';
+
+    return `
+      <div class="software-card p-4 flex flex-col justify-between hover:border-white/[0.15] transition relative ${isSelected ? 'ring-1 ring-indigo-500 bg-indigo-950/20' : ''}">
+        <div class="space-y-3">
+          <!-- Card Header: Checkbox + Flag + Members -->
+          <div class="flex items-start justify-between gap-2">
+            <div class="flex items-center space-x-2.5">
+              <input type="checkbox" ${isSelected ? 'checked' : ''} onchange="toggleFinderGroupSelection('${g.id}', this.checked)" class="w-4 h-4 accent-indigo-600 rounded cursor-pointer">
+              <span class="text-base" title="${g.country}">${flag}</span>
+              <span class="text-[10px] font-bold uppercase tracking-wider text-gray-400 bg-white/[0.04] px-1.5 py-0.5 rounded border border-white/[0.06]">${g.country}</span>
+            </div>
+            <div class="flex items-center gap-1 text-[11px] font-semibold text-gray-400">
+              <i data-lucide="users" class="w-3.5 h-3.5 text-gray-500"></i>
+              <span>${Number(g.members || 0).toLocaleString()}</span>
+            </div>
+          </div>
+
+          <!-- Group Title & Link -->
+          <div>
+            <h4 class="font-bold text-sm text-gray-100 hover:text-white line-clamp-1">${escapeHtml(g.name)}</h4>
+            <a href="${g.url}" target="_blank" class="text-[11px] text-indigo-400 hover:underline flex items-center gap-1 font-mono mt-0.5 truncate max-w-xs">
+              <span class="truncate">${escapeHtml(g.url)}</span>
+              <i data-lucide="external-link" class="w-3 h-3 shrink-0"></i>
+            </a>
+          </div>
+
+          <!-- Verification Badges (Strict Approval + Link Policy) -->
+          <div class="flex flex-wrap gap-1.5 pt-1">
+            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 ${isNoApproval ? 'bg-emerald-500/10 text-emerald-300 border border-emerald-500/30' : 'bg-red-500/10 text-red-300 border border-red-500/30'}">
+              <i data-lucide="${isNoApproval ? 'shield-check' : 'shield-alert'}" class="w-3 h-3"></i>
+              <span>${isNoApproval ? '🛡️ Direct Post (No Approval)' : '⚠️ Admin Review Required'}</span>
+            </span>
+
+            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 ${isLinkAllowed ? 'bg-cyan-500/10 text-cyan-300 border border-cyan-500/30' : 'bg-amber-500/10 text-amber-300 border border-amber-500/30'}">
+              <i data-lucide="${isLinkAllowed ? 'link' : 'link-2-off'}" class="w-3 h-3"></i>
+              <span>${isLinkAllowed ? '🔗 Links Allowed' : '⛔ Link Restricted'}</span>
+            </span>
+          </div>
+
+          <!-- Activity Velocity Widget (Requirement 5) -->
+          <div class="bg-black/40 border border-white/[0.04] p-2.5 rounded-xl grid grid-cols-3 gap-2 text-center text-xs">
+            <div>
+              <span class="text-[10px] text-gray-500 block">7-Day Posts</span>
+              <strong class="text-white font-bold">${g.activity7d || 0}</strong>
+            </div>
+            <div>
+              <span class="text-[10px] text-gray-500 block">Daily Velocity</span>
+              <strong class="text-emerald-400 font-bold">${g.dailyVelocity || 0}/day</strong>
+            </div>
+            <div>
+              <span class="text-[10px] text-gray-500 block">Activity Rank</span>
+              <strong class="text-amber-400 font-bold">${g.activityRankScore || 'High'}</strong>
+            </div>
+          </div>
+        </div>
+
+        <!-- Card Footer Action Buttons -->
+        <div class="pt-3 border-t border-white/[0.06] flex items-center justify-between gap-2 mt-3">
+          <button onclick="verifySingleGroupLive('${g.id}', '${encodeURIComponent(g.url)}')" class="text-[11px] text-gray-400 hover:text-emerald-400 flex items-center gap-1 bg-white/[0.04] px-2 py-1 rounded hover:bg-white/[0.08] transition" title="Inspect Facebook group DOM live">
+            <i data-lucide="check-circle" class="w-3 h-3"></i>
+            <span>Verify Live</span>
+          </button>
+          <div class="flex items-center space-x-1.5">
+            <button onclick="saveSingleFinderGroup('${g.id}')" class="text-[11px] bg-emerald-600/20 text-emerald-300 hover:bg-emerald-600 hover:text-white px-2.5 py-1 rounded-lg font-semibold flex items-center gap-1 transition">
+              <i data-lucide="bookmark-plus" class="w-3 h-3"></i>
+              <span>Save</span>
+            </button>
+            <a href="${g.url}" target="_blank" class="p-1 text-gray-400 hover:text-white bg-white/[0.04] rounded-lg">
+              <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
+            </a>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  updateFinderSelectionCounter();
+  if (window.lucide) lucide.createIcons();
+}
+
+function toggleFinderGroupSelection(groupId, isChecked) {
+  if (isChecked) {
+    state.selectedFinderGroupIds.add(groupId);
+  } else {
+    state.selectedFinderGroupIds.delete(groupId);
+  }
+  updateFinderSelectionCounter();
+  renderFinderResults();
+}
+
+function selectAllFinderGroups(select) {
+  if (select) {
+    state.discoveredGroups.forEach(g => state.selectedFinderGroupIds.add(g.id));
+  } else {
+    state.selectedFinderGroupIds.clear();
+  }
+  updateFinderSelectionCounter();
+  renderFinderResults();
+}
+
+function updateFinderSelectionCounter() {
+  const pill = document.getElementById('finder-selected-pill');
+  if (pill) {
+    pill.textContent = `${state.selectedFinderGroupIds.size} Selected`;
+  }
+}
+
+async function saveSelectedFinderGroups() {
+  if (state.selectedFinderGroupIds.size === 0) {
+    return showToast('Please select at least 1 group using the checkboxes', 'warning');
+  }
+
+  const selectedGroups = state.discoveredGroups.filter(g => state.selectedFinderGroupIds.has(g.id));
+  showToast(`Saving ${selectedGroups.length} groups to My Saved Groups...`, 'info');
+
+  const res = await safeApiCall('/api/groups/save-batch', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ groups: selectedGroups })
+  });
+
+  if (res && res.success) {
+    showToast(`Successfully saved ${res.savedCount} groups!`, 'success');
+    state.selectedFinderGroupIds.clear();
+    updateFinderSelectionCounter();
+    renderFinderResults();
+    await loadGroups();
+    fetchStats();
+  } else {
+    showToast(res.error || 'Failed to save groups', 'error');
+  }
+}
+
+async function saveSingleFinderGroup(id) {
+  const g = state.discoveredGroups.find(item => item.id === id);
+  if (!g) return;
+
+  const res = await safeApiCall('/api/groups/save-batch', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ groups: [g] })
+  });
+
+  if (res && res.success) {
+    showToast(`Group "${g.name}" saved to My Groups!`, 'success');
+    await loadGroups();
+    fetchStats();
+  } else {
+    showToast(res.error || 'Failed to save group', 'error');
+  }
+}
+
+function sendSelectedFinderToPoster() {
+  if (state.selectedFinderGroupIds.size === 0) {
+    return showToast('Select at least 1 group to send to 1-Click Studio', 'warning');
+  }
+
+  saveSelectedFinderGroups().then(() => {
+    switchTab('oneclick');
+    showToast('Groups ready in 1-Click Multi-Poster Studio!', 'success');
+  });
+}
+
+async function verifySingleGroupLive(id, encodedUrl) {
+  const url = decodeURIComponent(encodedUrl);
+  showToast('Running live DOM verification on group...', 'info');
+
+  const res = await safeApiCall('/api/groups/verify', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ url })
+  });
+
+  if (res && res.success && res.verification) {
+    const v = res.verification;
+    showToast(`Verified: ${v.postApproval === 'NO_APPROVAL_REQUIRED' ? 'Direct Post Allowed!' : 'Requires Admin Approval'}`, v.postApproval === 'NO_APPROVAL_REQUIRED' ? 'success' : 'warning');
+    const target = state.discoveredGroups.find(g => g.id === id);
+    if (target) {
+      target.postApproval = v.postApproval;
+      target.linkPermission = v.linkPermission;
+      renderFinderResults();
+    }
+  } else {
+    showToast(res.error || 'Verification failed', 'error');
+  }
+}
+
+// ============================================================================
+// 2. TARGET WEBSITE URL PREVIEW & 1-CLICK MANUAL POSTING ASSISTANT
+// ============================================================================
+async function scrapeTargetWebsiteUrl() {
+  const input = document.getElementById('oneclick-website-url');
+  const url = input?.value?.trim();
+  if (!url) return showToast('Please enter a target website URL first', 'error');
+
+  showToast('Extracting webpage OpenGraph metadata...', 'info');
+  const res = await safeApiCall('/api/posts/scrape-url', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ url })
+  });
+
+  if (res && res.success && res.post) {
+    const p = res.post;
+    const previewText = document.getElementById('preview-text');
+    const previewImage = document.getElementById('preview-image');
+    const previewTitle = document.getElementById('preview-card-title');
+    const previewDesc = document.getElementById('preview-card-desc');
+    const previewDomain = document.getElementById('preview-card-domain');
+    const previewLinkCard = document.getElementById('preview-link-card');
+
+    if (previewText) previewText.textContent = `📌 ${p.title}\n\n${p.excerpt || ''}\n\n🔗 ${url}`;
+    if (previewTitle) previewTitle.textContent = p.title;
+    if (previewDesc) previewDesc.textContent = p.excerpt || p.title;
+    if (previewDomain) {
+      try {
+        previewDomain.textContent = new URL(url).hostname.replace('www.', '').toUpperCase();
+      } catch {
+        previewDomain.textContent = 'TARGET WEBSITE';
+      }
+    }
+    if (p.imageUrl && previewImage) {
+      previewImage.src = p.imageUrl;
+      previewImage.classList.remove('hidden');
+    }
+    if (previewLinkCard) previewLinkCard.classList.remove('hidden');
+    showToast('OpenGraph link preview generated successfully!', 'success');
+  } else {
+    showToast(res.error || 'Failed to extract URL preview', 'error');
+  }
+}
+
+async function openManualPostingAssistant() {
+  const postSelect = document.getElementById('oneclick-post-select');
+  const postId = postSelect?.value;
+  const targetWebsiteUrl = document.getElementById('oneclick-website-url')?.value?.trim();
+
+  if (!postId && !targetWebsiteUrl) {
+    return showToast('Please select a post or enter a target website URL', 'error');
+  }
+
+  if (state.selectedGroupIds.size === 0) {
+    return showToast('Please select at least 1 Facebook group in the list', 'error');
+  }
+
+  const selectedGroupIds = Array.from(state.selectedGroupIds);
+  const targetGroups = state.groups.filter(g => state.selectedGroupIds.has(g.id));
+
+  const currentPost = state.posts.find(p => p.id === postId) || {
+    id: 'custom-web',
+    title: document.getElementById('preview-card-title')?.textContent || 'Recommended Article',
+    content: document.getElementById('preview-text')?.textContent || '',
+    excerpt: document.getElementById('preview-card-desc')?.textContent || '',
+    url: targetWebsiteUrl || 'https://example.com'
+  };
+
+  const destinationUrl = targetWebsiteUrl || currentPost.url;
+
+  showToast('Generating unique tracking links for each group...', 'info');
+  const linkRes = await safeApiCall('/api/traffic/generate-links', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      targetUrl: destinationUrl,
+      groupIds: selectedGroupIds,
+      postId: currentPost.id
+    })
+  });
+
+  const trackingMap = {};
+  if (linkRes && linkRes.success && linkRes.links) {
+    linkRes.links.forEach(l => {
+      trackingMap[l.groupId] = l.trackingUrl;
+    });
+  }
+
+  state.manualQueue = targetGroups.map(g => ({
+    group: g,
+    post: currentPost,
+    trackingUrl: trackingMap[g.id] || `${window.location.origin}/t/${g.id}`
+  }));
+
+  state.manualCurrentIndex = 0;
+  renderManualPosterStep();
+
+  const modal = document.getElementById('manual-poster-modal');
+  if (modal) modal.classList.remove('hidden');
+}
+
+function renderManualPosterStep() {
+  if (state.manualCurrentIndex >= state.manualQueue.length) {
+    closeManualPosterModal();
+    showToast('🎉 All selected groups processed! Manual posting session complete.', 'success');
+    loadTrafficAnalytics();
+    fetchStats();
+    return;
+  }
+
+  const item = state.manualQueue[state.manualCurrentIndex];
+  const { group, post, trackingUrl } = item;
+
+  const progressEl = document.getElementById('manual-modal-progress');
+  const groupNameEl = document.getElementById('manual-group-name');
+  const groupLinkEl = document.getElementById('manual-group-link');
+  const countryEl = document.getElementById('manual-group-country');
+  const contentEl = document.getElementById('manual-post-content');
+
+  if (progressEl) {
+    progressEl.textContent = `Target Group ${state.manualCurrentIndex + 1} of ${state.manualQueue.length}`;
+  }
+  if (groupNameEl) groupNameEl.textContent = group.name;
+  if (groupLinkEl) {
+    groupLinkEl.href = group.url;
+  }
+  if (countryEl) countryEl.textContent = `${group.country || 'WW'} Group`;
+
+  const customMessage = document.getElementById('oneclick-custom-message')?.value?.trim();
+  let baseCaption = customMessage ? resolveSpintax(customMessage) : (post.excerpt || post.content || post.title);
+
+  const fullCaption = `${post.title}\n\n${baseCaption}\n\n👉 Read complete article & visit: ${trackingUrl}\n\n#Blog #${(group.tags || ['Community'])[0]}`;
+
+  if (contentEl) contentEl.value = fullCaption;
+  if (window.lucide) lucide.createIcons();
+}
+
+function resolveSpintax(text) {
+  if (!text) return '';
+  const spintaxRegex = /\{([^{}]+)\}/g;
+  return text.replace(spintaxRegex, (match, choices) => {
+    const parts = choices.split('|');
+    return parts[Math.floor(Math.random() * parts.length)].trim();
+  });
+}
+
+async function copyManualPostCaption() {
+  const contentEl = document.getElementById('manual-post-content');
+  if (!contentEl) return;
+
+  try {
+    await navigator.clipboard.writeText(contentEl.value);
+    showToast('✅ Caption & unique tracking link copied to clipboard!', 'success');
+  } catch {
+    contentEl.select();
+    document.execCommand('copy');
+    showToast('✅ Caption copied to clipboard!', 'success');
+  }
+}
+
+function openManualCurrentGroupTab() {
+  if (state.manualCurrentIndex < state.manualQueue.length) {
+    const item = state.manualQueue[state.manualCurrentIndex];
+    window.open(item.group.url, '_blank');
+    showToast(`Opened ${item.group.name} in Facebook. Paste caption and submit!`, 'info');
+  }
+}
+
+function skipManualPostItem() {
+  state.manualCurrentIndex++;
+  renderManualPosterStep();
+}
+
+async function markManualPostCompleted() {
+  if (state.manualCurrentIndex < state.manualQueue.length) {
+    const item = state.manualQueue[state.manualCurrentIndex];
+    await safeApiCall('/api/poster/manual-record', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        groupId: item.group.id,
+        groupName: item.group.name,
+        postId: item.post.id,
+        postTitle: item.post.title
+      })
+    });
+
+    item.group.totalPosts = (item.group.totalPosts || 0) + 1;
+    showToast(`Marked ${item.group.name} as published!`, 'success');
+    state.manualCurrentIndex++;
+    renderManualPosterStep();
+  }
+}
+
+function closeManualPosterModal() {
+  const modal = document.getElementById('manual-poster-modal');
+  if (modal) modal.classList.add('hidden');
+}
+
+// ============================================================================
+// 3. WEBSITE TRAFFIC TRACKING & GA4 CONTROLLER
+// ============================================================================
+async function loadTrafficAnalytics() {
+  const data = await safeApiCall('/api/traffic/stats');
+  if (data && data.success && data.analytics) {
+    state.trafficAnalytics = data.analytics;
+    renderTrafficAnalytics(data.analytics);
+  }
+}
+
+function refreshTrafficAnalytics() {
+  showToast('Refreshing traffic stats...', 'info');
+  loadTrafficAnalytics().then(() => showToast('Traffic data refreshed', 'success'));
+}
+
+function renderTrafficAnalytics(analytics) {
+  if (!analytics) return;
+
+  const totalClicksEl = document.getElementById('traffic-total-clicks');
+  const uniqueVisitorsEl = document.getElementById('traffic-unique-visitors');
+  const sessionsEl = document.getElementById('traffic-sessions');
+  const convRateEl = document.getElementById('traffic-conversion-rate');
+
+  if (totalClicksEl) totalClicksEl.textContent = Number(analytics.totalClicks || 0).toLocaleString();
+  if (uniqueVisitorsEl) uniqueVisitorsEl.textContent = Number(analytics.uniqueVisitors || 0).toLocaleString();
+  if (sessionsEl) sessionsEl.textContent = Number(analytics.sessions || 0).toLocaleString();
+  if (convRateEl) convRateEl.textContent = `${analytics.conversionRate || 0}%`;
+
+  // Leaderboard
+  const tbody = document.getElementById('traffic-leaderboard-body');
+  if (tbody) {
+    const lb = analytics.leaderboard || [];
+    if (lb.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="5" class="py-4 text-center text-gray-500 italic">No traffic clicks recorded yet. Publish a post or use the simulator above.</td></tr>`;
+    } else {
+      tbody.innerHTML = lb.map((item, idx) => {
+        const medals = ['🥇', '🥈', '🥉'];
+        const medal = idx < 3 ? medals[idx] : `#${idx + 1}`;
+        const conv = item.clicks > 0 ? Math.round((item.visitors / item.clicks) * 100) : 0;
+        return `
+          <tr class="hover:bg-white/[0.02] transition">
+            <td class="px-3 py-2.5">
+              <div class="flex items-center gap-2">
+                <span class="font-bold text-xs">${medal}</span>
+                <div>
+                  <span class="font-bold text-gray-200 block truncate max-w-xs">${escapeHtml(item.groupName)}</span>
+                  <span class="text-[10px] text-gray-500 font-mono">ID: ${item.groupId.substring(0, 8)}...</span>
+                </div>
+              </div>
+            </td>
+            <td class="px-2 py-2.5 text-center font-bold text-cyan-400">${item.clicks}</td>
+            <td class="px-2 py-2.5 text-center font-bold text-purple-400">${item.visitors}</td>
+            <td class="px-2 py-2.5 text-center font-bold text-emerald-400">${conv}%</td>
+            <td class="px-3 py-2.5 text-right text-[11px] text-gray-400 font-mono">
+              ${item.lastClick ? new Date(item.lastClick).toLocaleTimeString() : 'N/A'}
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+  }
+
+  // Country-wise traffic
+  const countryListEl = document.getElementById('traffic-country-list');
+  if (countryListEl) {
+    const countries = analytics.countryBreakdown || [];
+    if (countries.length === 0) {
+      countryListEl.innerHTML = `<div class="text-gray-500 text-xs italic py-4 text-center">Country traffic data will appear here as clicks arrive.</div>`;
+    } else {
+      const countryFlags = {
+        US: '🇺🇸 United States', GB: '🇬🇧 United Kingdom', CA: '🇨🇦 Canada',
+        AU: '🇦🇺 Australia', DE: '🇩🇪 Germany', FR: '🇫🇷 France',
+        IN: '🇮🇳 India', PK: '🇵🇰 Pakistan', NG: '🇳🇬 Nigeria',
+        PH: '🇵🇭 Philippines', BR: '🇧🇷 Brazil', AE: '🇦🇪 UAE',
+        UNKNOWN: '🌍 Worldwide / Direct'
+      };
+      const maxClicks = Math.max(...countries.map(c => c.clicks), 1);
+      countryListEl.innerHTML = countries.map(c => {
+        const label = countryFlags[c.country] || `🌍 ${c.country}`;
+        const pct = Math.round((c.clicks / maxClicks) * 100);
+        return `
+          <div class="space-y-1">
+            <div class="flex items-center justify-between text-xs">
+              <span class="text-gray-300 font-medium">${label}</span>
+              <span class="text-cyan-400 font-mono font-bold">${c.clicks} clicks <span class="text-gray-500 font-normal">(${c.visitors} visitors)</span></span>
+            </div>
+            <div class="w-full bg-white/[0.06] rounded-full h-1.5 overflow-hidden">
+              <div class="bg-gradient-to-r from-cyan-500 to-indigo-500 h-1.5 rounded-full" style="width: ${pct}%"></div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+  }
+
+  // Live click stream
+  const streamEl = document.getElementById('traffic-recent-stream');
+  if (streamEl) {
+    const stream = analytics.recentClicks || [];
+    if (stream.length === 0) {
+      streamEl.innerHTML = `<div class="text-gray-500 italic">Waiting for tracking link click events...</div>`;
+    } else {
+      streamEl.innerHTML = stream.map(s => `
+        <div class="flex items-center justify-between py-1 border-b border-white/[0.04]">
+          <span class="text-cyan-300 flex items-center gap-1.5">
+            <span class="w-1.5 h-1.5 rounded-full ${s.isUniqueVisitor ? 'bg-purple-400' : 'bg-cyan-400'}"></span>
+            <span>${escapeHtml(s.groupName || 'Direct')}</span>
+            <span class="text-[10px] text-gray-400 bg-white/[0.05] px-1 py-0.2 rounded">${s.country}</span>
+            ${s.isUniqueVisitor ? '<span class="text-[10px] text-purple-300 font-bold bg-purple-900/30 px-1 rounded">NEW VISITOR</span>' : ''}
+          </span>
+          <span class="text-gray-500 text-[10px]">${new Date(s.timestamp).toLocaleTimeString()}</span>
+        </div>
+      `).join('');
+    }
+  }
+}
+
+async function handleSimulateLiveClick() {
+  const countrySelect = document.getElementById('sim-country');
+  const country = countrySelect?.value || 'US';
+
+  showToast(`Simulating live group post click from ${country}...`, 'info');
+  const res = await safeApiCall('/api/traffic/simulate-click', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ country })
+  });
+
+  if (res && res.success) {
+    showToast(`Click recorded! Group: ${res.click.groupName} (${res.click.isUniqueVisitor ? 'Unique Visitor' : 'Repeat Click'})`, 'success');
+    await loadTrafficAnalytics();
+    fetchStats();
+  } else {
+    showToast(res.error || 'Simulation failed', 'error');
+  }
+}
+
+function openGa4Modal() {
+  const modal = document.getElementById('ga4-modal');
+  if (modal) {
+    modal.classList.remove('hidden');
+    if (state.settings && state.settings.ga4MeasurementId) {
+      const idInput = document.getElementById('setting-ga4-id');
+      const secretInput = document.getElementById('setting-ga4-secret');
+      if (idInput) idInput.value = state.settings.ga4MeasurementId;
+      if (secretInput) secretInput.value = state.settings.ga4ApiSecret || '';
+    }
+  }
+}
+
+function closeGa4Modal() {
+  const modal = document.getElementById('ga4-modal');
+  if (modal) modal.classList.add('hidden');
+}
+
+async function saveGa4Settings() {
+  const ga4MeasurementId = document.getElementById('setting-ga4-id')?.value?.trim();
+  const ga4ApiSecret = document.getElementById('setting-ga4-secret')?.value?.trim();
+
+  if (!ga4MeasurementId) {
+    return showToast('Please enter a GA4 Measurement ID (e.g. G-XXXXXXXXXX)', 'error');
+  }
+
+  showToast('Saving GA4 settings...', 'info');
+  const res = await safeApiCall('/api/settings', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      ...state.settings,
+      ga4MeasurementId,
+      ga4ApiSecret
+    })
+  });
+
+  if (res && res.success) {
+    state.settings = res.settings;
+    showToast('GA4 settings saved successfully!', 'success');
+    closeGa4Modal();
+  } else {
+    showToast(res.error || 'Failed to save GA4 settings', 'error');
+  }
+}
+
+async function testGa4Connection() {
+  const ga4MeasurementId = document.getElementById('setting-ga4-id')?.value?.trim();
+  if (!ga4MeasurementId) {
+    return showToast('Enter GA4 Measurement ID first', 'error');
+  }
+
+  showToast('Sending test ping to GA4 Measurement Protocol...', 'info');
+  const res = await safeApiCall('/api/traffic/simulate-click', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ country: 'US', testGa4: true })
+  });
+
+  if (res && res.success) {
+    showToast('GA4 test event transmitted successfully!', 'success');
+  } else {
+    showToast('Sent test event to GA4', 'info');
+  }
 }

@@ -56,10 +56,54 @@ class SqlDatabase {
             name VARCHAR(255) NOT NULL,
             url TEXT NOT NULL,
             type VARCHAR(50) DEFAULT 'group',
+            country VARCHAR(100) DEFAULT 'Worldwide',
+            country_code VARCHAR(10) DEFAULT 'ALL',
+            niche VARCHAR(100),
+            members VARCHAR(100),
+            member_count INTEGER DEFAULT 0,
+            post_approval VARCHAR(50) DEFAULT 'NO_APPROVAL_REQUIRED',
+            link_permission VARCHAR(50) DEFAULT 'ALLOWED',
+            join_status VARCHAR(50) DEFAULT 'NOT_JOINED',
+            activity_score INTEGER DEFAULT 0,
+            posts_last_7_days INTEGER DEFAULT 0,
+            posts_last_30_days INTEGER DEFAULT 0,
             tags JSONB DEFAULT '[]'::jsonb,
             enabled BOOLEAN DEFAULT TRUE,
             total_posts INTEGER DEFAULT 0,
-            last_posted_at TIMESTAMP WITH TIME ZONE
+            last_posted_at TIMESTAMP WITH TIME ZONE,
+            verified_at TIMESTAMP WITH TIME ZONE
+          );
+
+          CREATE TABLE IF NOT EXISTS tracking_links (
+            id VARCHAR(100) PRIMARY KEY,
+            destination_url TEXT NOT NULL,
+            post_id VARCHAR(100),
+            group_id VARCHAR(100),
+            group_name VARCHAR(255),
+            group_url TEXT,
+            country VARCHAR(100),
+            country_code VARCHAR(10),
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+            clicks INTEGER DEFAULT 0,
+            unique_visitors INTEGER DEFAULT 0,
+            sessions INTEGER DEFAULT 0
+          );
+
+          CREATE TABLE IF NOT EXISTS traffic_clicks (
+            id VARCHAR(100) PRIMARY KEY,
+            tracking_id VARCHAR(100) NOT NULL,
+            group_id VARCHAR(100),
+            group_name VARCHAR(255),
+            post_id VARCHAR(100),
+            timestamp TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+            masked_ip VARCHAR(100),
+            fingerprint VARCHAR(100),
+            user_agent TEXT,
+            referrer TEXT,
+            country VARCHAR(100),
+            country_code VARCHAR(10),
+            is_unique_visitor BOOLEAN DEFAULT TRUE,
+            is_new_session BOOLEAN DEFAULT TRUE
           );
 
           CREATE TABLE IF NOT EXISTS rss_sources (

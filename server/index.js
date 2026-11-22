@@ -20,6 +20,20 @@ app.use('/uploads', express.static(config.UPLOADS_DIR));
 // API Router
 app.use('/api', apiRoutes);
 
+// High-Speed Tracking Link Redirect
+app.get('/t/:trackingId', async (req, res) => {
+  try {
+    const { trafficTracker } = require('./services/trafficTracker');
+    const result = await trafficTracker.recordClick(req.params.trackingId, req);
+    if (result && result.destinationUrl) {
+      return res.redirect(302, result.destinationUrl);
+    }
+    res.status(404).send('Tracking link was not found or has expired.');
+  } catch (err) {
+    res.status(500).send('Tracking redirect error: ' + err.message);
+  }
+});
+
 // Catch-all route to serve SPA frontend
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
