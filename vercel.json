@@ -6,6 +6,14 @@
       "destination": "/api/index.js"
     },
     {
+      "source": "/favicon.ico",
+      "destination": "/public/favicon.ico"
+    },
+    {
+      "source": "/favicon.svg",
+      "destination": "/public/favicon.svg"
+    },
+    {
       "source": "/uploads/(.*)",
       "destination": "/api/index.js"
     },
