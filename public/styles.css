@@ -68,17 +68,35 @@ html.light {
   color-scheme: light;
 }
 
-/* Base Body */
+/* Base Body & Workspace Canvas */
 * {
   box-sizing: border-box;
 }
 
-body {
-  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+html,
+body,
+.app-workspace-canvas,
+main {
   background-color: var(--bg-base);
   color: var(--text-main);
+}
+
+body {
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   overflow: hidden;
   -webkit-font-smoothing: antialiased;
+}
+
+/* Light Mode Overrides for Canvas & Residual Tailwind Dark Backgrounds */
+html.light,
+html.light body,
+html.light .app-workspace-canvas,
+html.light main,
+html.light .bg-\[\#06080F\],
+html.light .bg-\[\#0A0D18\],
+html.light .bg-\[\#0A0D18\]\/60 {
+  background-color: #F8FAFC !important;
+  color: #0F172A !important;
 }
 
 /* Minimalist Scrollbars */
@@ -513,6 +531,17 @@ html.light .badge-link-restricted {
   border: 1px solid #FDE68A !important;
 }
 
+.badge-unverified {
+  background: rgba(255, 255, 255, 0.05);
+  color: #94A3B8;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+html.light .badge-unverified {
+  background: #F1F5F9 !important;
+  color: #475569 !important;
+  border: 1px solid #CBD5E1 !important;
+}
+
 /* Filter Toggles */
 .filter-toggle-label {
   background: rgba(255, 255, 255, 0.04);
@@ -817,6 +846,102 @@ html.light .bg-gray-950 {
   background-color: #FFFFFF !important;
   border-color: #CBD5E1 !important;
   color: #1E293B !important;
+}
+
+/* Global Light Mode overrides for lingering dark gray utility classes */
+html.light .bg-gray-800,
+html.light .bg-gray-800\/40,
+html.light .bg-gray-800\/60,
+html.light .bg-gray-700 {
+  background-color: #F1F5F9 !important;
+  color: #334155 !important;
+  border-color: #CBD5E1 !important;
+}
+
+html.light .hover\:bg-gray-800\/40:hover,
+html.light .hover\:bg-gray-800\/60:hover,
+html.light .hover\:bg-gray-700:hover {
+  background-color: #E2E8F0 !important;
+}
+
+/* 1-Click Studio Tag Filter Pills */
+.group-filter-pill {
+  background: rgba(255, 255, 255, 0.05);
+  color: #94A3B8;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.group-filter-pill:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #FFFFFF;
+}
+.group-filter-pill.active {
+  background: #4F46E5 !important;
+  color: #FFFFFF !important;
+  border-color: #6366F1 !important;
+  box-shadow: 0 2px 8px -1px rgba(99, 102, 241, 0.4);
+}
+html.light .group-filter-pill {
+  background: #F1F5F9 !important;
+  color: #475569 !important;
+  border: 1px solid #CBD5E1 !important;
+}
+html.light .group-filter-pill:hover {
+  background: #E2E8F0 !important;
+  color: #0F172A !important;
+}
+html.light .group-filter-pill.active {
+  background: #4F46E5 !important;
+  color: #FFFFFF !important;
+  border-color: #4338CA !important;
+}
+
+/* 1-Click Studio Target Group List Container & Items */
+html.light #oneclick-group-list {
+  background-color: #FFFFFF !important;
+  border: 1px solid #CBD5E1 !important;
+}
+.group-checkbox-item:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+html.light .group-checkbox-item:hover {
+  background: #F1F5F9 !important;
+}
+
+/* Group Post Count Badge & Tag Badges */
+.badge-post-count {
+  background: rgba(255, 255, 255, 0.06);
+  color: #94A3B8;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+html.light .badge-post-count {
+  background: #EEF2FF !important;
+  color: #4338CA !important;
+  border: 1px solid #C7D2FE !important;
+}
+
+.badge-tag-pill {
+  background: rgba(255, 255, 255, 0.06);
+  color: #CBD5E1;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+html.light .badge-tag-pill {
+  background: #F1F5F9 !important;
+  color: #475569 !important;
+  border: 1px solid #CBD5E1 !important;
+}
+
+/* Facebook Live Post Preview in 1-Click Studio */
+html.light #tab-oneclick .bg-black\/60,
+html.light #tab-oneclick .bg-black\/50,
+html.light #tab-oneclick .bg-black\/40 {
+  background-color: #F8FAFC !important;
+  border: 1px solid #CBD5E1 !important;
+}
+html.light #preview-link-card {
+  background-color: #FFFFFF !important;
+  border: 1px solid #CBD5E1 !important;
 }
 
 /* ==========================================================================

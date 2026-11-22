@@ -500,7 +500,7 @@ function renderPostsGrid() {
 
   if (state.posts.length === 0) {
     container.innerHTML = `
-      <div class="col-span-full bg-gray-900 border border-gray-800 rounded-2xl p-8 text-center space-y-3">
+      <div class="col-span-full software-card p-8 text-center space-y-3">
         <i data-lucide="file-question" class="w-10 h-10 text-gray-500 mx-auto"></i>
         <h4 class="text-sm font-semibold text-gray-300">No blog posts found</h4>
         <p class="text-xs text-gray-500">Add an article manually, scrape a blog URL, or connect an RSS feed.</p>
@@ -514,7 +514,7 @@ function renderPostsGrid() {
   }
 
   container.innerHTML = state.posts.map(post => `
-    <div class="bg-[#111827] border border-gray-800 rounded-2xl overflow-hidden shadow-lg flex flex-col justify-between hover:border-gray-700 transition">
+    <div class="software-card overflow-hidden flex flex-col justify-between transition">
       <div>
         ${post.imageUrl ? `<img src="${post.imageUrl}" alt="${escapeHtml(post.title)}" class="w-full h-36 object-cover">` : ''}
         <div class="p-4 space-y-2">
@@ -525,18 +525,18 @@ function renderPostsGrid() {
             <span>${new Date(post.createdAt).toLocaleDateString()}</span>
           </div>
 
-          <h3 class="font-bold text-sm text-gray-100 line-clamp-2">${escapeHtml(post.title)}</h3>
+          <h3 class="font-bold text-sm card-group-title line-clamp-2">${escapeHtml(post.title)}</h3>
           <p class="text-xs text-gray-400 line-clamp-3">${escapeHtml(post.excerpt || post.content || '')}</p>
 
           ${post.tags && post.tags.length > 0 ? `
             <div class="flex flex-wrap gap-1 pt-1">
-              ${post.tags.map(t => `<span class="bg-gray-800 text-gray-300 text-[10px] px-2 py-0.5 rounded-md">#${escapeHtml(t)}</span>`).join('')}
+              ${post.tags.map(t => `<span class="badge-tag-pill text-[10px] px-2 py-0.5 rounded-md">#${escapeHtml(t)}</span>`).join('')}
             </div>
           ` : ''}
         </div>
       </div>
 
-      <div class="p-4 border-t border-gray-800/80 flex items-center justify-between">
+      <div class="p-4 border-t border-white/[0.06] flex items-center justify-between">
         <a href="${post.url}" target="_blank" class="text-xs text-indigo-400 hover:underline flex items-center gap-1">
           <i data-lucide="external-link" class="w-3.5 h-3.5"></i> Read Article
         </a>
@@ -831,12 +831,12 @@ function renderGroupsTable() {
           </span>
         </td>
         <td class="px-3 py-3 whitespace-nowrap">
-          <span class="px-2 py-0.5 rounded text-[10px] font-semibold ${isNoApproval ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : g.postApproval === 'REQUIRES_APPROVAL' ? 'bg-red-500/10 text-red-400 border border-red-500/20' : 'bg-gray-800 text-gray-400 border border-gray-700'}">
+          <span class="badge-status text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 w-max ${isNoApproval ? 'badge-direct-post' : g.postApproval === 'REQUIRES_APPROVAL' ? 'badge-approval-needed' : 'badge-unverified'}">
             ${isNoApproval ? '🛡️ Direct Post' : g.postApproval === 'REQUIRES_APPROVAL' ? '⚠️ Admin Review' : '❓ Unverified'}
           </span>
         </td>
         <td class="px-3 py-3 whitespace-nowrap">
-          <span class="px-2 py-0.5 rounded text-[10px] font-semibold ${isLinkAllowed ? 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/20' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'}">
+          <span class="badge-status text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 w-max ${isLinkAllowed ? 'badge-link-allowed' : 'badge-link-restricted'}">
             ${isLinkAllowed ? '🔗 Allowed' : '⛔ Restricted'}
           </span>
         </td>
@@ -1021,7 +1021,7 @@ function renderGroupFilterTags() {
   });
 
   container.innerHTML = Array.from(allTags).map(tag => `
-    <button type="button" onclick="filterGroupsByTag('${tag}')" class="px-2 py-1 rounded-lg text-[10px] font-semibold transition ${state.activeTagFilter === tag ? 'bg-indigo-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'}">
+    <button type="button" onclick="filterGroupsByTag('${tag}')" class="group-filter-pill px-2.5 py-1 rounded-lg text-[10px] font-semibold transition ${state.activeTagFilter === tag ? 'active' : ''}">
       ${tag === 'ALL' ? 'All Groups' : '#' + tag}
     </button>
   `).join('');
@@ -1049,13 +1049,13 @@ function renderOneClickGroupCheckboxes() {
   }
 
   container.innerHTML = filtered.map(g => `
-    <label class="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-800/60 cursor-pointer text-xs">
+    <label class="group-checkbox-item flex items-center space-x-3 p-2 rounded-lg cursor-pointer text-xs transition">
       <input type="checkbox" value="${g.id}" ${state.selectedGroupIds.has(g.id) ? 'checked' : ''} onchange="toggleGroupSelection('${g.id}', this.checked)" class="w-4 h-4 accent-indigo-600 rounded">
       <div class="flex-1 truncate">
-        <div class="font-semibold text-gray-200">${escapeHtml(g.name)}</div>
-        <div class="text-[10px] text-gray-500 truncate">${escapeHtml(g.url)}</div>
+        <div class="font-semibold card-group-title">${escapeHtml(g.name)}</div>
+        <div class="text-[10px] text-gray-400 truncate font-mono">${escapeHtml(g.url)}</div>
       </div>
-      <span class="text-[10px] text-gray-400 bg-gray-800 px-1.5 py-0.5 rounded">${g.totalPosts || 0} posts</span>
+      <span class="badge-post-count text-[10px] font-semibold px-2 py-0.5 rounded-full">${g.totalPosts || 0} posts</span>
     </label>
   `).join('');
 
@@ -1415,7 +1415,7 @@ function renderCampaignsGrid() {
 
   if (state.campaigns.length === 0) {
     container.innerHTML = `
-      <div class="col-span-full bg-gray-900 border border-gray-800 rounded-2xl p-8 text-center space-y-3">
+      <div class="col-span-full software-card p-8 text-center space-y-3">
         <i data-lucide="clock" class="w-10 h-10 text-gray-500 mx-auto"></i>
         <h4 class="text-sm font-semibold text-gray-300">No Auto-Pilot Campaigns</h4>
         <p class="text-xs text-gray-500">Create recurring schedules to automatically post blog articles multiple times.</p>
@@ -1429,18 +1429,18 @@ function renderCampaignsGrid() {
   }
 
   container.innerHTML = state.campaigns.map(c => `
-    <div class="bg-[#111827] border border-gray-800 rounded-2xl p-5 shadow-lg flex flex-col justify-between space-y-4 hover:border-gray-700 transition">
+    <div class="software-card p-5 shadow-lg flex flex-col justify-between space-y-4 transition">
       <div>
         <div class="flex items-center justify-between">
-          <span class="px-2 py-0.5 rounded text-[10px] font-semibold ${c.active ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-gray-800 text-gray-500'}">
-            ${c.active ? 'Active 24/7' : 'Paused'}
+          <span class="badge-status text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 ${c.active ? 'badge-direct-post' : 'badge-unverified'}">
+            ${c.active ? '⚡ Active 24/7' : '⏸️ Paused'}
           </span>
           <button onclick="deleteCampaign('${c.id}')" class="text-gray-400 hover:text-red-400 p-1">
             <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
           </button>
         </div>
 
-        <h3 class="font-bold text-sm text-gray-100 mt-2">${escapeHtml(c.name)}</h3>
+        <h3 class="font-bold text-sm card-group-title mt-2">${escapeHtml(c.name)}</h3>
 
         <div class="space-y-1.5 mt-3 text-xs text-gray-400">
           <div class="flex justify-between">
@@ -1462,8 +1462,8 @@ function renderCampaignsGrid() {
         </div>
       </div>
 
-      <div class="pt-3 border-t border-gray-800/80">
-        <button onclick="toggleCampaignActive('${c.id}', ${!c.active})" class="w-full py-2 rounded-xl text-xs font-semibold ${c.active ? 'bg-gray-800 text-gray-300 hover:bg-gray-700' : 'bg-emerald-600 text-white hover:bg-emerald-500'}">
+      <div class="pt-3 border-t border-white/[0.06]">
+        <button onclick="toggleCampaignActive('${c.id}', ${!c.active})" class="w-full py-2 rounded-xl text-xs font-semibold transition ${c.active ? 'btn-card-verify' : 'bg-emerald-600 text-white hover:bg-emerald-500'}">
           ${c.active ? 'Pause Campaign' : 'Resume Campaign'}
         </button>
       </div>

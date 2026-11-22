@@ -53,9 +53,9 @@
       }
     }
   </script>
-  <link rel="stylesheet" href="/styles.css?v=20261122_light_dark_v3">
+  <link rel="stylesheet" href="/styles.css?v=20261122_light_dark_v4">
 </head>
-<body class="bg-[#06080F] text-gray-200 h-screen w-screen overflow-hidden flex flex-row antialiased select-none">
+<body class="text-gray-200 h-screen w-screen overflow-hidden flex flex-row antialiased select-none" style="background-color: var(--bg-base);">
 
   <!-- Mobile Sidebar Backdrop Overlay -->
   <div id="sidebar-overlay" onclick="toggleSidebar(false)" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-40 lg:hidden transition-opacity duration-300"></div>
@@ -63,7 +63,7 @@
   <!-- ========================================================================= -->
   <!-- LUXURY SOFTWARE SIDEBAR (LEFT)                                            -->
   <!-- ========================================================================= -->
-  <aside id="sidebar" class="fixed lg:static inset-y-0 left-0 z-50 w-72 lg:w-64 h-full bg-[#0A0D18] border-r border-white/[0.06] flex flex-col justify-between shrink-0 transform -translate-x-full lg:translate-x-0 transition-transform duration-300 ease-in-out shadow-2xl lg:shadow-none">
+  <aside id="sidebar" class="fixed lg:static inset-y-0 left-0 z-50 w-72 lg:w-64 h-full border-r border-white/[0.06] flex flex-col justify-between shrink-0 transform -translate-x-full lg:translate-x-0 transition-transform duration-300 ease-in-out shadow-2xl lg:shadow-none">
     <div class="flex flex-col h-full overflow-hidden">
       
       <!-- Brand & Workspace Selector -->
@@ -244,15 +244,13 @@
       </div>
 
     </div>
-  </aside>
-
-  <!-- ========================================================================= -->
+  </aside>  <!-- ========================================================================= -->
   <!-- MAIN WORKSPACE APPLICATION CANVAS (RIGHT)                                 -->
   <!-- ========================================================================= -->
-  <div class="flex-1 flex flex-col h-full overflow-hidden bg-[#06080F]">
+  <div class="flex-1 flex flex-col h-full overflow-hidden app-workspace-canvas" style="background-color: var(--bg-base);">
     
     <!-- Top Software Header / Bar -->
-    <header class="h-14 border-b border-white/[0.06] bg-[#0A0D18]/60 backdrop-blur-md px-3 sm:px-4 md:px-6 flex items-center justify-between shrink-0 gap-2">
+    <header class="h-14 border-b border-white/[0.06] backdrop-blur-md px-3 sm:px-4 md:px-6 flex items-center justify-between shrink-0 gap-2">
       <div class="flex items-center space-x-2 text-xs truncate">
         <!-- Mobile Sidebar Hamburger Toggle -->
         <button id="mobile-menu-btn" onclick="toggleSidebar(true)" class="lg:hidden p-2 -ml-1 text-gray-300 hover:text-white rounded-lg hover:bg-white/[0.06] focus:outline-none transition" aria-label="Open Navigation">
@@ -277,7 +275,7 @@
           <span id="theme-toggle-text" class="hidden sm:inline">Theme</span>
         </button>
 
-        <button onclick="openNewPostModal()" class="flex items-center space-x-1 sm:space-x-1.5 bg-white/[0.06] hover:bg-white/[0.1] text-gray-200 border border-white/[0.08] px-2 sm:px-3 py-1.5 rounded-lg text-xs font-semibold transition">
+        <button onclick="openNewPostModal()" class="flex items-center space-x-1 sm:space-x-1.5 bg-white/[0.06] hover:bg-white/[0.1] text-gray-200 border border-white/[0.08] px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold transition">
           <i data-lucide="plus" class="w-3.5 h-3.5"></i>
           <span class="hidden sm:inline">New Post</span>
         </button>
@@ -290,7 +288,7 @@
     </header>
 
     <!-- Scrollable Content View Area -->
-    <main class="flex-1 overflow-y-auto p-3 sm:p-4 md:p-6 pb-24 sm:pb-8">
+    <main class="flex-1 overflow-y-auto p-3 sm:p-4 md:p-6 pb-24 sm:pb-8" style="background-color: var(--bg-base);">
 
       <!-- ===================================================================== -->
       <!-- VIEW: WORLDWIDE & COUNTRY-WISE FACEBOOK GROUP FINDER                 -->
@@ -1583,6 +1581,6 @@ https://www.facebook.com/groups/group2" class="w-full bg-black/50 border border-
   <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col space-y-2 pointer-events-none"></div>
 
   <!-- Client Script -->
-  <script src="/app.js?v=20261122_light_dark_v3"></script>
+  <script src="/app.js?v=20261122_light_dark_v4"></script>
 </body>
 </html>
