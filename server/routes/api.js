@@ -72,6 +72,15 @@ router.get('/stats', async (req, res) => {
 // --- Facebook Authentication ---
 router.get('/auth/status', async (req, res) => {
   try {
+    const settings = db.getSettings();
+    if (settings && settings.fbSession && (settings.fbSession.c_user || settings.fbSession.accessToken)) {
+      return res.json({ success: true, loggedIn: true, mode: 'cloud' });
+    }
+
+    if (config.IS_VERCEL) {
+      return res.json({ success: true, loggedIn: false, isVercel: true });
+    }
+
     const status = await fbAutomation.checkLoginStatus();
     res.json({ success: true, ...status });
   } catch (err) {
@@ -81,6 +90,14 @@ router.get('/auth/status', async (req, res) => {
 
 router.post('/auth/open-login', async (req, res) => {
   try {
+    if (config.IS_VERCEL) {
+      return res.status(200).json({
+        success: false,
+        isVercel: true,
+        error: 'Cloud Mode Active: Interactive Chrome window cannot open on Vercel. Please connect using Facebook Cookies (c_user & xs) or run start.bat on your PC.'
+      });
+    }
+
     fbAutomation.openLoginBrowser((msg) => {
       posterEngine.log(msg, 'info');
     }).catch(err => {
@@ -88,6 +105,23 @@ router.post('/auth/open-login', async (req, res) => {
     });
 
     res.json({ success: true, message: 'Login browser opened. Please check your screen.' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/auth/save-session', (req, res) => {
+  try {
+    const { c_user, xs, accessToken } = req.body;
+    const settings = db.getSettings();
+    settings.fbSession = {
+      c_user: (c_user || '').trim(),
+      xs: (xs || '').trim(),
+      accessToken: (accessToken || '').trim(),
+      connectedAt: new Date().toISOString()
+    };
+    db.updateSettings(settings);
+    res.json({ success: true, message: 'Facebook session saved successfully!' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

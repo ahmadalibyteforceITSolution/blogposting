@@ -135,34 +135,45 @@ async function loadAllData() {
 }
 
 async function fetchStats() {
+  const data = await safeApiCall('/api/stats');
+  if (data && data.success && data.stats) {
+    state.stats = data.stats;
+    const statPosts = document.getElementById('stat-posts');
+    const statGroups = document.getElementById('stat-groups');
+    const statSuccess = document.getElementById('stat-success');
+    const statFailed = document.getElementById('stat-failed');
+    const statCampaigns = document.getElementById('stat-campaigns');
+
+    if (statPosts) statPosts.textContent = data.stats.totalPosts;
+    if (statGroups) statGroups.textContent = `${data.stats.activeGroups} / ${data.stats.totalGroups}`;
+    if (statSuccess) statSuccess.textContent = data.stats.successfulPosts;
+    if (statFailed) statFailed.textContent = data.stats.failedPosts;
+    if (statCampaigns) statCampaigns.textContent = data.stats.activeCampaigns;
+
+    const badgePosts = document.getElementById('nav-badge-posts');
+    const badgeGroups = document.getElementById('nav-badge-groups');
+    const badgeRss = document.getElementById('nav-badge-rss');
+    if (badgePosts) badgePosts.textContent = data.stats.totalPosts;
+    if (badgeGroups) badgeGroups.textContent = data.stats.totalGroups;
+    if (badgeRss) badgeRss.textContent = state.rssSources.length;
+
+    updateEngineStatus(data.stats.isBusy);
+  }
+}
+
+// Safe API request helper to prevent JSON parse errors
+async function safeApiCall(url, options = {}) {
   try {
-    const res = await fetch('/api/stats');
-    const data = await res.json();
-    if (data.success) {
-      state.stats = data.stats;
-      const statPosts = document.getElementById('stat-posts');
-      const statGroups = document.getElementById('stat-groups');
-      const statSuccess = document.getElementById('stat-success');
-      const statFailed = document.getElementById('stat-failed');
-      const statCampaigns = document.getElementById('stat-campaigns');
-
-      if (statPosts) statPosts.textContent = data.stats.totalPosts;
-      if (statGroups) statGroups.textContent = `${data.stats.activeGroups} / ${data.stats.totalGroups}`;
-      if (statSuccess) statSuccess.textContent = data.stats.successfulPosts;
-      if (statFailed) statFailed.textContent = data.stats.failedPosts;
-      if (statCampaigns) statCampaigns.textContent = data.stats.activeCampaigns;
-
-      const badgePosts = document.getElementById('nav-badge-posts');
-      const badgeGroups = document.getElementById('nav-badge-groups');
-      const badgeRss = document.getElementById('nav-badge-rss');
-      if (badgePosts) badgePosts.textContent = data.stats.totalPosts;
-      if (badgeGroups) badgeGroups.textContent = data.stats.totalGroups;
-      if (badgeRss) badgeRss.textContent = state.rssSources.length;
-
-      updateEngineStatus(data.stats.isBusy);
+    const res = await fetch(url, options);
+    const contentType = res.headers.get('content-type') || '';
+    if (contentType.includes('application/json')) {
+      const data = await res.json();
+      return { ok: res.ok, status: res.status, ...data };
     }
+    const text = await res.text();
+    return { ok: false, status: res.status, error: text || `HTTP ${res.status}` };
   } catch (err) {
-    console.error('Failed to fetch stats:', err);
+    return { ok: false, error: err.message };
   }
 }
 
@@ -175,44 +186,87 @@ async function checkFacebookLogin(manual = false) {
     if (dot) dot.className = 'absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-amber-400 animate-pulse ring-2 ring-[#0A0D18]';
   }
 
-  try {
-    const res = await fetch('/api/auth/status');
-    const data = await res.json();
-    state.isLoggedIn = data.loggedIn;
+  const data = await safeApiCall('/api/auth/status');
+  state.isLoggedIn = !!data.loggedIn;
 
-    if (data.loggedIn) {
-      if (dot) dot.className = 'absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-400 ring-2 ring-[#0A0D18]';
-      if (text) {
-        text.textContent = 'Active & Connected';
-        text.className = 'text-[10px] text-emerald-400 font-medium';
-      }
-      if (manual) showToast('Facebook session active!', 'success');
-    } else {
-      if (dot) dot.className = 'absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-red-400 ring-2 ring-[#0A0D18]';
-      if (text) {
-        text.textContent = 'Not Logged In';
-        text.className = 'text-[10px] text-gray-400';
-      }
-      if (manual) showToast('Not logged in. Click "Login" in sidebar.', 'error');
+  if (data.loggedIn) {
+    if (dot) dot.className = 'absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-400 ring-2 ring-[#0A0D18]';
+    if (text) {
+      text.textContent = data.mode === 'cloud' ? 'Cloud Connected' : 'Active & Connected';
+      text.className = 'text-[10px] text-emerald-400 font-medium';
     }
-  } catch (e) {
-    if (dot) dot.className = 'absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-red-500 ring-2 ring-[#0A0D18]';
-    if (text) text.textContent = 'Connection Error';
+    if (manual) showToast('Facebook session is active!', 'success');
+  } else {
+    if (dot) dot.className = 'absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-red-400 ring-2 ring-[#0A0D18]';
+    if (text) {
+      text.textContent = data.isVercel ? 'Cloud Ready' : 'Not Connected';
+      text.className = 'text-[10px] text-gray-400';
+    }
+    if (manual) showToast('Not logged in. Click "Login" in sidebar.', 'error');
   }
 }
 
-async function openLoginModal() {
-  try {
-    showToast('Launching Chrome browser for Facebook login...', 'info');
-    const res = await fetch('/api/auth/open-login', { method: 'POST' });
-    const data = await res.json();
-    if (data.success) {
-      showToast('Chrome opened. Complete login in the browser window!', 'success');
-    } else {
-      showToast(data.error || 'Failed to open login browser', 'error');
-    }
-  } catch (err) {
-    showToast(err.message, 'error');
+function openLoginModal() {
+  const modal = document.getElementById('fb-connect-modal');
+  if (modal) modal.classList.remove('hidden');
+}
+
+function closeLoginModal() {
+  const modal = document.getElementById('fb-connect-modal');
+  if (modal) modal.classList.add('hidden');
+}
+
+function switchFbAuthMode(mode) {
+  const cloudBtn = document.getElementById('btn-auth-mode-cloud');
+  const desktopBtn = document.getElementById('btn-auth-mode-desktop');
+  const cloudView = document.getElementById('auth-mode-cloud-view');
+  const desktopView = document.getElementById('auth-mode-desktop-view');
+
+  if (mode === 'cloud') {
+    cloudBtn.className = 'flex-1 py-1.5 font-semibold rounded-md bg-indigo-600 text-white transition';
+    desktopBtn.className = 'flex-1 py-1.5 font-semibold rounded-md text-gray-400 hover:text-white transition';
+    cloudView.classList.remove('hidden');
+    desktopView.classList.add('hidden');
+  } else {
+    desktopBtn.className = 'flex-1 py-1.5 font-semibold rounded-md bg-indigo-600 text-white transition';
+    cloudBtn.className = 'flex-1 py-1.5 font-semibold rounded-md text-gray-400 hover:text-white transition';
+    desktopView.classList.remove('hidden');
+    cloudView.classList.add('hidden');
+  }
+}
+
+async function handleSaveCloudSession() {
+  const c_user = document.getElementById('fb-cuser')?.value?.trim();
+  const xs = document.getElementById('fb-xs')?.value?.trim();
+
+  if (!c_user || !xs) {
+    return showToast('Please enter both c_user and xs cookies', 'error');
+  }
+
+  showToast('Connecting Facebook session...', 'info');
+  const res = await safeApiCall('/api/auth/save-session', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ c_user, xs })
+  });
+
+  if (res.success) {
+    showToast('Facebook connected successfully for 24/7 cloud posting!', 'success');
+    closeLoginModal();
+    checkFacebookLogin();
+  } else {
+    showToast(res.error || 'Failed to save session', 'error');
+  }
+}
+
+async function handleLaunchDesktopChrome() {
+  showToast('Launching Chrome browser for Facebook login...', 'info');
+  const res = await safeApiCall('/api/auth/open-login', { method: 'POST' });
+  if (res.success) {
+    showToast('Chrome opened. Complete login in the browser window!', 'success');
+    closeLoginModal();
+  } else {
+    showToast(res.error || 'Failed to open Chrome. Run start.bat on your PC.', 'error');
   }
 }
 
@@ -254,16 +308,11 @@ function openVideoMediaModal() {
 
 // --- BLOG POSTS CATALOG ---
 async function loadPosts() {
-  try {
-    const res = await fetch('/api/posts');
-    const data = await res.json();
-    if (data.success) {
-      state.posts = data.posts;
-      renderPostsGrid();
-      populateOneClickPostDropdown();
-    }
-  } catch (err) {
-    console.error('Error loading posts:', err);
+  const data = await safeApiCall('/api/posts');
+  if (data && data.success && data.posts) {
+    state.posts = data.posts;
+    renderPostsGrid();
+    populateOneClickPostDropdown();
   }
 }
 
@@ -527,17 +576,12 @@ async function deletePost(postId) {
 
 // --- FACEBOOK GROUPS MANAGEMENT ---
 async function loadGroups() {
-  try {
-    const res = await fetch('/api/groups');
-    const data = await res.json();
-    if (data.success) {
-      state.groups = data.groups;
-      renderGroupsTable();
-      renderOneClickGroupCheckboxes();
-      renderGroupFilterTags();
-    }
-  } catch (err) {
-    console.error('Error loading groups:', err);
+  const data = await safeApiCall('/api/groups');
+  if (data && data.success && data.groups) {
+    state.groups = data.groups;
+    renderGroupsTable();
+    renderOneClickGroupCheckboxes();
+    renderGroupFilterTags();
   }
 }
 
@@ -882,15 +926,10 @@ function clearDashboardLogs() {
 
 // --- RSS FEEDS MODAL ---
 async function loadRssSources() {
-  try {
-    const res = await fetch('/api/rss');
-    const data = await res.json();
-    if (data.success) {
-      state.rssSources = data.sources;
-      renderRssList();
-    }
-  } catch (err) {
-    console.error('Error loading RSS:', err);
+  const data = await safeApiCall('/api/rss');
+  if (data && data.success && data.sources) {
+    state.rssSources = data.sources;
+    renderRssList();
   }
 }
 
@@ -986,17 +1025,11 @@ async function deleteRss(sourceId) {
   }
 }
 
-// --- CAMPAIGNS (AUTO-PILOT) ---
 async function loadCampaigns() {
-  try {
-    const res = await fetch('/api/campaigns');
-    const data = await res.json();
-    if (data.success) {
-      state.campaigns = data.campaigns;
-      renderCampaignsGrid();
-    }
-  } catch (err) {
-    console.error('Error loading campaigns:', err);
+  const data = await safeApiCall('/api/campaigns');
+  if (data && data.success && data.campaigns) {
+    state.campaigns = data.campaigns;
+    renderCampaignsGrid();
   }
 }
 
@@ -1125,15 +1158,10 @@ async function deleteCampaign(id) {
 
 // --- LOGS & HISTORY ---
 async function loadHistory() {
-  try {
-    const res = await fetch('/api/history');
-    const data = await res.json();
-    if (data.success) {
-      state.history = data.history;
-      renderHistoryTable();
-    }
-  } catch (err) {
-    console.error('Error loading history:', err);
+  const data = await safeApiCall('/api/history');
+  if (data && data.success && data.history) {
+    state.history = data.history;
+    renderHistoryTable();
   }
 }
 
@@ -1177,33 +1205,24 @@ function renderHistoryTable() {
 
 async function clearHistoryLogs() {
   if (!confirm('Clear all execution history logs?')) return;
-  try {
-    await fetch('/api/history', { method: 'DELETE' });
-    showToast('Logs cleared', 'info');
-    await loadHistory();
-    fetchStats();
-  } catch (err) {
-    showToast(err.message, 'error');
-  }
+  await safeApiCall('/api/history', { method: 'DELETE' });
+  showToast('Logs cleared', 'info');
+  await loadHistory();
+  fetchStats();
 }
 
 // --- SETTINGS ---
 async function loadSettings() {
-  try {
-    const res = await fetch('/api/settings');
-    const data = await res.json();
-    if (data.success) {
-      state.settings = data.settings;
-      document.getElementById('setting-min-delay').value = data.settings.minDelaySeconds || 45;
-      document.getElementById('setting-max-delay').value = data.settings.maxDelaySeconds || 90;
-      document.getElementById('setting-chrome-path').value = data.settings.chromePath || '';
-      document.getElementById('setting-headless').checked = !!data.settings.headless;
-      document.getElementById('setting-spintax-enabled').checked = !!data.settings.spintaxEnabled;
-      document.getElementById('setting-spintax-prefix').value = data.settings.spintaxPrefix || '';
-      document.getElementById('setting-spintax-suffix').value = data.settings.spintaxSuffix || '';
-    }
-  } catch (err) {
-    console.error('Error loading settings:', err);
+  const data = await safeApiCall('/api/settings');
+  if (data && data.success && data.settings) {
+    state.settings = data.settings;
+    if (document.getElementById('setting-min-delay')) document.getElementById('setting-min-delay').value = data.settings.minDelaySeconds || 45;
+    if (document.getElementById('setting-max-delay')) document.getElementById('setting-max-delay').value = data.settings.maxDelaySeconds || 90;
+    if (document.getElementById('setting-chrome-path')) document.getElementById('setting-chrome-path').value = data.settings.chromePath || '';
+    if (document.getElementById('setting-headless')) document.getElementById('setting-headless').checked = !!data.settings.headless;
+    if (document.getElementById('setting-spintax-enabled')) document.getElementById('setting-spintax-enabled').checked = !!data.settings.spintaxEnabled;
+    if (document.getElementById('setting-spintax-prefix')) document.getElementById('setting-spintax-prefix').value = data.settings.spintaxPrefix || '';
+    if (document.getElementById('setting-spintax-suffix')) document.getElementById('setting-spintax-suffix').value = data.settings.spintaxSuffix || '';
   }
 }
 

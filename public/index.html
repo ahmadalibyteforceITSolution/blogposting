@@ -874,6 +874,74 @@ https://www.facebook.com/groups/group2" class="w-full bg-black/50 border border-
     </div>
   </div>
 
+  <!-- MODAL: CONNECT FACEBOOK (DESKTOP & CLOUD AUTO) -->
+  <div id="fb-connect-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+    <div class="software-card max-w-lg w-full p-6 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between border-b border-white/[0.06] pb-3">
+        <div class="flex items-center space-x-2.5">
+          <div class="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white font-bold text-xs">FB</div>
+          <h3 class="font-bold text-sm text-white">Connect Facebook Account</h3>
+        </div>
+        <button onclick="closeLoginModal()" class="text-gray-400 hover:text-white"><i data-lucide="x" class="w-4 h-4"></i></button>
+      </div>
+
+      <!-- Mode Switcher -->
+      <div class="flex rounded-lg bg-black/60 p-1 border border-white/[0.06] text-xs">
+        <button type="button" onclick="switchFbAuthMode('cloud')" id="btn-auth-mode-cloud" class="flex-1 py-1.5 font-semibold rounded-md bg-indigo-600 text-white transition">
+          Cloud Auto (Vercel & 24/7)
+        </button>
+        <button type="button" onclick="switchFbAuthMode('desktop')" id="btn-auth-mode-desktop" class="flex-1 py-1.5 font-semibold rounded-md text-gray-400 hover:text-white transition">
+          Desktop Chrome Window
+        </button>
+      </div>
+
+      <!-- MODE 1: CLOUD AUTO (COOKIE / TOKEN) -->
+      <div id="auth-mode-cloud-view" class="space-y-3.5 text-xs">
+        <p class="text-gray-300">Connect your Facebook session cookies for <strong>100% autonomous cloud posting on Vercel</strong> without needing your computer on.</p>
+        
+        <div class="bg-black/40 border border-white/[0.06] p-3 rounded-xl space-y-2.5">
+          <div>
+            <label class="text-[11px] text-gray-400 block mb-1">Cookie: <code class="text-indigo-300">c_user</code> (Facebook User ID)</label>
+            <input type="text" id="fb-cuser" placeholder="e.g. 10008472918239" class="w-full bg-black/60 border border-white/[0.08] rounded-lg px-3 py-2 text-xs text-gray-200 font-mono-code">
+          </div>
+          <div>
+            <label class="text-[11px] text-gray-400 block mb-1">Cookie: <code class="text-indigo-300">xs</code> (Session Token)</label>
+            <input type="password" id="fb-xs" placeholder="e.g. 21%3ABz...%3A2%3A17..." class="w-full bg-black/60 border border-white/[0.08] rounded-lg px-3 py-2 text-xs text-gray-200 font-mono-code">
+          </div>
+        </div>
+
+        <div class="bg-indigo-950/20 border border-indigo-500/20 p-2.5 rounded-lg text-[11px] text-indigo-300 flex items-start gap-2">
+          <i data-lucide="info" class="w-4 h-4 shrink-0 mt-0.5 text-indigo-400"></i>
+          <span>To get your cookies in 10s: Open Facebook.com &rarr; Press <kbd class="bg-black/60 px-1 py-0.5 rounded border border-white/10">F12</kbd> &rarr; Application / Storage &rarr; Cookies &rarr; Copy <code>c_user</code> and <code>xs</code>.</span>
+        </div>
+
+        <div class="flex justify-end gap-2 pt-2 border-t border-white/[0.06]">
+          <button type="button" onclick="closeLoginModal()" class="bg-white/[0.06] hover:bg-white/[0.1] text-gray-300 px-4 py-2 rounded-xl text-xs font-semibold">Cancel</button>
+          <button onclick="handleSaveCloudSession()" class="btn-primary-action px-5 py-2 rounded-xl text-xs font-semibold">Save & Connect</button>
+        </div>
+      </div>
+
+      <!-- MODE 2: DESKTOP CHROME WINDOW -->
+      <div id="auth-mode-desktop-view" class="hidden space-y-3.5 text-xs">
+        <p class="text-gray-300">Opens a visible Google Chrome window using your local browser. Log into Facebook once; your profile is saved permanently on your PC.</p>
+        
+        <div class="bg-amber-500/10 border border-amber-500/20 p-3 rounded-xl text-amber-300 text-xs flex items-center gap-2">
+          <i data-lucide="alert-triangle" class="w-4 h-4 shrink-0"></i>
+          <span>Requires running the app locally on your PC via <code>start.bat</code>.</span>
+        </div>
+
+        <div class="flex justify-end gap-2 pt-2 border-t border-white/[0.06]">
+          <button type="button" onclick="closeLoginModal()" class="bg-white/[0.06] hover:bg-white/[0.1] text-gray-300 px-4 py-2 rounded-xl text-xs font-semibold">Cancel</button>
+          <button onclick="handleLaunchDesktopChrome()" class="btn-primary-action px-5 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5">
+            <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
+            <span>Launch Chrome Window</span>
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
   <!-- TOAST NOTIFICATION CONTAINER -->
   <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col space-y-2 pointer-events-none"></div>
 
