@@ -69,19 +69,23 @@ function initEventSource() {
 }
 
 function updateEngineStatus(isBusy) {
-  const pill = document.getElementById('engine-status-pill');
+  const pill = document.getElementById('topbar-engine-status');
+  if (!pill) return;
   const dot = pill.querySelector('span');
-  const text = document.getElementById('engine-status-text');
+  const text = document.getElementById('topbar-engine-text');
 
   if (isBusy) {
-    pill.classList.remove('hidden');
-    dot.className = 'w-2 h-2 rounded-full bg-amber-400 animate-ping';
-    text.textContent = 'Posting in Progress...';
-    text.className = 'text-amber-300 font-medium';
+    if (dot) dot.className = 'w-2 h-2 rounded-full bg-amber-400 animate-ping';
+    if (text) {
+      text.textContent = 'Posting in Progress...';
+      text.className = 'text-amber-300 font-medium';
+    }
   } else {
-    dot.className = 'w-2 h-2 rounded-full bg-emerald-400';
-    text.textContent = 'Engine Ready';
-    text.className = 'text-gray-300';
+    if (dot) dot.className = 'w-2 h-2 rounded-full bg-emerald-400 pulse-green';
+    if (text) {
+      text.textContent = 'Engine Idle';
+      text.className = 'text-gray-300';
+    }
   }
 }
 
@@ -136,12 +140,25 @@ async function fetchStats() {
     const data = await res.json();
     if (data.success) {
       state.stats = data.stats;
-      document.getElementById('stat-posts').textContent = data.stats.totalPosts;
-      document.getElementById('stat-groups').textContent = `${data.stats.activeGroups} / ${data.stats.totalGroups}`;
-      document.getElementById('stat-success').textContent = data.stats.successfulPosts;
-      document.getElementById('stat-failed').textContent = data.stats.failedPosts;
-      document.getElementById('stat-campaigns').textContent = data.stats.activeCampaigns;
-      document.getElementById('stat-rss-sources').textContent = state.rssSources.length;
+      const statPosts = document.getElementById('stat-posts');
+      const statGroups = document.getElementById('stat-groups');
+      const statSuccess = document.getElementById('stat-success');
+      const statFailed = document.getElementById('stat-failed');
+      const statCampaigns = document.getElementById('stat-campaigns');
+
+      if (statPosts) statPosts.textContent = data.stats.totalPosts;
+      if (statGroups) statGroups.textContent = `${data.stats.activeGroups} / ${data.stats.totalGroups}`;
+      if (statSuccess) statSuccess.textContent = data.stats.successfulPosts;
+      if (statFailed) statFailed.textContent = data.stats.failedPosts;
+      if (statCampaigns) statCampaigns.textContent = data.stats.activeCampaigns;
+
+      const badgePosts = document.getElementById('nav-badge-posts');
+      const badgeGroups = document.getElementById('nav-badge-groups');
+      const badgeRss = document.getElementById('nav-badge-rss');
+      if (badgePosts) badgePosts.textContent = data.stats.totalPosts;
+      if (badgeGroups) badgeGroups.textContent = data.stats.totalGroups;
+      if (badgeRss) badgeRss.textContent = state.rssSources.length;
+
       updateEngineStatus(data.stats.isBusy);
     }
   } catch (err) {
@@ -150,13 +167,12 @@ async function fetchStats() {
 }
 
 async function checkFacebookLogin(manual = false) {
-  const dot = document.getElementById('fb-status-dot');
-  const text = document.getElementById('fb-status-text');
-  const badge = document.getElementById('session-badge');
+  const dot = document.getElementById('sidebar-fb-dot');
+  const text = document.getElementById('sidebar-fb-text');
 
-  if (manual) {
-    text.textContent = 'Verifying Session...';
-    dot.className = 'w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse';
+  if (manual && text) {
+    text.textContent = 'Verifying...';
+    if (dot) dot.className = 'absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-amber-400 animate-pulse ring-2 ring-[#0A0D18]';
   }
 
   try {
@@ -165,29 +181,29 @@ async function checkFacebookLogin(manual = false) {
     state.isLoggedIn = data.loggedIn;
 
     if (data.loggedIn) {
-      dot.className = 'w-2.5 h-2.5 rounded-full bg-emerald-400';
-      text.textContent = 'Facebook Connected';
-      text.className = 'text-emerald-300 font-medium';
-      badge.textContent = 'Connected & Active';
-      badge.className = 'px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
-      if (manual) showToast('Facebook session confirmed active!', 'success');
+      if (dot) dot.className = 'absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-400 ring-2 ring-[#0A0D18]';
+      if (text) {
+        text.textContent = 'Active & Connected';
+        text.className = 'text-[10px] text-emerald-400 font-medium';
+      }
+      if (manual) showToast('Facebook session active!', 'success');
     } else {
-      dot.className = 'w-2.5 h-2.5 rounded-full bg-red-400';
-      text.textContent = 'Not Connected';
-      text.className = 'text-gray-300';
-      badge.textContent = 'Not Logged In';
-      badge.className = 'px-2 py-0.5 rounded text-[11px] font-semibold bg-red-500/10 text-red-400 border border-red-500/20';
-      if (manual) showToast('Not logged into Facebook. Please click "Connect" to log in.', 'error');
+      if (dot) dot.className = 'absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-red-400 ring-2 ring-[#0A0D18]';
+      if (text) {
+        text.textContent = 'Not Logged In';
+        text.className = 'text-[10px] text-gray-400';
+      }
+      if (manual) showToast('Not logged in. Click "Login" in sidebar.', 'error');
     }
   } catch (e) {
-    dot.className = 'w-2.5 h-2.5 rounded-full bg-red-500';
-    text.textContent = 'Connection Error';
+    if (dot) dot.className = 'absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-red-500 ring-2 ring-[#0A0D18]';
+    if (text) text.textContent = 'Connection Error';
   }
 }
 
 async function openLoginModal() {
   try {
-    showToast('Opening Chrome browser for Facebook login...', 'info');
+    showToast('Launching Chrome browser for Facebook login...', 'info');
     const res = await fetch('/api/auth/open-login', { method: 'POST' });
     const data = await res.json();
     if (data.success) {
@@ -200,20 +216,40 @@ async function openLoginModal() {
   }
 }
 
-// --- Navigation Tabs ---
+// --- Navigation Tabs & Breadcrumbs ---
+const TAB_TITLES = {
+  oneclick: '1-Click Multi-Poster Studio',
+  overview: 'Dashboard & Global Metrics',
+  blogs: 'Blog Articles & Content Catalog',
+  groups: 'Facebook Target Groups & Audiences',
+  autopilot: 'Autonomous 24/7 Campaigns',
+  history: 'System Audit & Execution Logs',
+  settings: 'Anti-Ban & Engine Settings'
+};
+
 function switchTab(tabId) {
   state.activeTab = tabId;
 
-  document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(btn => btn.classList.remove('active'));
   document.querySelectorAll('.tab-content').forEach(section => section.classList.add('hidden'));
 
   const activeBtn = document.getElementById(`tab-btn-${tabId}`);
   const activeSection = document.getElementById(`tab-${tabId}`);
+  const breadcrumb = document.getElementById('breadcrumb-title');
 
   if (activeBtn) activeBtn.classList.add('active');
   if (activeSection) activeSection.classList.remove('hidden');
+  if (breadcrumb && TAB_TITLES[tabId]) breadcrumb.textContent = TAB_TITLES[tabId];
 
   if (window.lucide) lucide.createIcons();
+}
+
+function openVideoMediaModal() {
+  openNewPostModal();
+  const title = document.getElementById('post-modal-title');
+  if (title) title.textContent = 'Post Video to Facebook Groups';
+  const videoInput = document.getElementById('post-video-file');
+  if (videoInput) videoInput.focus();
 }
 
 // --- BLOG POSTS CATALOG ---
@@ -354,11 +390,21 @@ function handlePostSelectionChange() {
   previewTitle.textContent = p.title;
   previewDesc.textContent = p.excerpt || p.title;
 
+  const previewVideoContainer = document.getElementById('preview-video-container');
+
   if (p.imageUrl) {
     previewImage.src = p.imageUrl;
     previewImage.classList.remove('hidden');
   } else {
     previewImage.classList.add('hidden');
+  }
+
+  if (previewVideoContainer) {
+    if (p.videoUrl || p.localVideoPath) {
+      previewVideoContainer.classList.remove('hidden');
+    } else {
+      previewVideoContainer.classList.add('hidden');
+    }
   }
 
   previewLinkCard.classList.remove('hidden');
